@@ -58,7 +58,7 @@ const Login = () => {
           >
             <img src="/favicon.png" alt="CMR Technical Campus" className="w-12 h-12 rounded-xl object-contain" />
           </motion.div>
-          <h1 className="text-3xl font-display font-extrabold gradient-text">FacultyAttend</h1>
+          <h1 className="text-3xl font-display font-extrabold gradient-text">CMRTC Faculty</h1>
           <p className="text-muted-foreground mt-2 text-sm font-body">
             Secure Faculty Attendance System with Face Recognition
           </p>
