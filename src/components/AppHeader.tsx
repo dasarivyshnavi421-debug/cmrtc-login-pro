@@ -16,9 +16,7 @@ const AppHeader = () => {
     <header className="sticky top-0 z-50 border-b border-border" style={{ background: "var(--gradient-surface)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg gradient-bg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src="/favicon.png" alt="CMR Technical Campus" className="w-9 h-9 rounded-lg object-contain" />
           <span className="font-display font-extrabold text-lg gradient-text">
             Faculty<span className="text-muted-foreground" style={{ WebkitTextFillColor: "hsl(var(--muted-foreground))" }}>Attend</span>
           </span>

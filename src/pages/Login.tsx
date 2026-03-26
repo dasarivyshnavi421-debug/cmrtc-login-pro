@@ -56,9 +56,7 @@ const Login = () => {
             transition={{ delay: 0.2, type: "spring" }}
             className="inline-flex items-center gap-2 mb-4"
           >
-            <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <img src="/favicon.png" alt="CMR Technical Campus" className="w-12 h-12 rounded-xl object-contain" />
           </motion.div>
           <h1 className="text-3xl font-display font-extrabold gradient-text">FacultyAttend</h1>
           <p className="text-muted-foreground mt-2 text-sm font-body">
