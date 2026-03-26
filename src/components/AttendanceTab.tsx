@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { loadData, markAttendance, getAttendance, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
+import { loadData, markAttendance, markOutTime, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
-import { Save, CheckCheck, Download } from "lucide-react";
+import { Save, CheckCheck, Download, LogIn, LogOut, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -13,14 +13,19 @@ const AttendanceTab = ({ onUpdate }: Props) => {
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [records, setRecords] = useState<Record<string, AttendanceRecord>>({});
   const [pending, setPending] = useState<Record<number, AttendanceRecord["status"]>>({});
+  const [selectedDept, setSelectedDept] = useState<string>("all");
+  const [departments, setDepartments] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     const data = loadData();
     setFaculty(data.faculty);
     setRecords(getAttendance(selectedDate));
+    setDepartments(getDepartments());
     setPending({});
   }, [selectedDate]);
+
+  const filteredFaculty = selectedDept === "all" ? faculty : faculty.filter((f) => f.department === selectedDept);
 
   const setStatus = (id: number, status: AttendanceRecord["status"]) => {
     setPending((prev) => ({ ...prev, [id]: status }));
@@ -36,9 +41,16 @@ const AttendanceTab = ({ onUpdate }: Props) => {
     toast({ title: "✅ Attendance saved!" });
   };
 
+  const handleMarkOut = (id: number) => {
+    markOutTime(id, selectedDate);
+    setRecords(getAttendance(selectedDate));
+    onUpdate();
+    toast({ title: "🕐 Out-time marked!" });
+  };
+
   const markAllPresent = () => {
     const newPending: Record<number, AttendanceRecord["status"]> = {};
-    faculty.forEach((f) => { newPending[f.id] = "present"; });
+    filteredFaculty.forEach((f) => { newPending[f.id] = "present"; });
     setPending(newPending);
   };
 
@@ -75,6 +87,19 @@ const AttendanceTab = ({ onUpdate }: Props) => {
           onChange={(e) => setSelectedDate(e.target.value)}
           className="bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm font-body focus:outline-none focus:border-primary"
         />
+        <div className="flex items-center gap-1.5">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <select
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm font-body focus:outline-none focus:border-primary"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
         <Button onClick={saveAll} size="sm" className="gradient-bg text-primary-foreground gap-1.5">
           <Save className="w-3.5 h-3.5" /> Save All
         </Button>
@@ -94,41 +119,68 @@ const AttendanceTab = ({ onUpdate }: Props) => {
               <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Faculty</th>
               <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Department</th>
               <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+              <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">In Time</th>
+              <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Out Time</th>
             </tr>
           </thead>
           <tbody>
-            {faculty.length === 0 ? (
-              <tr><td colSpan={4} className="text-center py-12 text-muted-foreground">No faculty added yet.</td></tr>
+            {filteredFaculty.length === 0 ? (
+              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No faculty found.</td></tr>
             ) : (
-              faculty.map((f, i) => (
-                <tr key={f.id} className="border-t border-border hover:bg-muted/50 transition-colors">
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {f.photoUrl ? (
-                        <img src={f.photoUrl} alt={f.name} className="w-8 h-8 rounded-full object-cover border border-border" />
+              filteredFaculty.map((f, i) => {
+                const rec = records[String(f.id)];
+                return (
+                  <tr key={f.id} className="border-t border-border hover:bg-muted/50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{i + 1}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {f.photoUrl ? (
+                          <img src={f.photoUrl} alt={f.name} className="w-8 h-8 rounded-full object-cover border border-border" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {f.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </div>
+                        )}
+                        <span className="font-medium text-sm">{f.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground">{f.department}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5">
+                        {(["present", "absent", "leave"] as const).map((s) => (
+                          <button key={s} onClick={() => setStatus(f.id, s)} className={statusBtnClass(s, getStatus(f.id))}>
+                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {rec?.inTime ? (
+                        <span className="text-xs text-success flex items-center gap-1">
+                          <LogIn className="w-3 h-3" /> {rec.inTime}
+                        </span>
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
-                          {f.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                        </div>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
-                      <span className="font-medium text-sm">{f.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-muted border border-border text-muted-foreground">{f.department}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1.5">
-                      {(["present", "absent", "leave"] as const).map((s) => (
-                        <button key={s} onClick={() => setStatus(f.id, s)} className={statusBtnClass(s, getStatus(f.id))}>
-                          {s.charAt(0).toUpperCase() + s.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {rec?.outTime ? (
+                        <span className="text-xs text-destructive flex items-center gap-1">
+                          <LogOut className="w-3 h-3" /> {rec.outTime}
+                        </span>
+                      ) : rec?.status === "present" ? (
+                        <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => handleMarkOut(f.id)}>
+                          <LogOut className="w-3 h-3" /> Mark Out
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
