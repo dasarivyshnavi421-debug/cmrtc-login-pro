@@ -11,6 +11,8 @@ export interface AttendanceRecord {
   status: "present" | "absent" | "leave";
   timestamp: string;
   method?: "manual" | "face";
+  inTime?: string;
+  outTime?: string;
 }
 
 export interface AttendanceData {
@@ -40,6 +42,11 @@ export function saveData(data: AttendanceData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+export function getDepartments(): string[] {
+  const data = loadData();
+  return [...new Set(data.faculty.map((f) => f.department))].sort();
+}
+
 export function addFaculty(name: string, department: string, email: string, photoUrl?: string): Faculty {
   const data = loadData();
   const newId = Math.max(0, ...data.faculty.map((f) => f.id)) + 1;
@@ -65,15 +72,35 @@ export function updateFacultyPhoto(id: number, photoUrl: string, faceDescriptor?
   }
 }
 
-export function markAttendance(facultyId: number, date: string, status: AttendanceRecord["status"], method: "manual" | "face" = "manual") {
+export function markAttendance(
+  facultyId: number,
+  date: string,
+  status: AttendanceRecord["status"],
+  method: "manual" | "face" = "manual",
+  inTime?: string,
+  outTime?: string
+) {
   const data = loadData();
   if (!data.attendance[date]) data.attendance[date] = {};
+  const existing = data.attendance[date][String(facultyId)];
+  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
   data.attendance[date][String(facultyId)] = {
     status,
-    timestamp: new Date().toLocaleTimeString(),
+    timestamp: now,
     method,
+    inTime: inTime || existing?.inTime || (status === "present" ? now : undefined),
+    outTime: outTime || existing?.outTime,
   };
   saveData(data);
+}
+
+export function markOutTime(facultyId: number, date: string) {
+  const data = loadData();
+  const record = data.attendance[date]?.[String(facultyId)];
+  if (record) {
+    record.outTime = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    saveData(data);
+  }
 }
 
 export function getAttendance(date: string) {
@@ -81,9 +108,10 @@ export function getAttendance(date: string) {
   return data.attendance[date] || {};
 }
 
-export function getStats() {
+export function getStats(department?: string) {
   const data = loadData();
-  return data.faculty.map((f) => {
+  const filtered = department ? data.faculty.filter((f) => f.department === department) : data.faculty;
+  return filtered.map((f) => {
     const totalDays = Object.keys(data.attendance).length;
     let present = 0, absent = 0, leave = 0;
     for (const records of Object.values(data.attendance)) {
@@ -99,12 +127,12 @@ export function getStats() {
 
 export function exportCSV(): string {
   const data = loadData();
-  const rows = ["Faculty Name,Department,Date,Status,Time,Method"];
+  const rows = ["Faculty Name,Department,Date,Status,In Time,Out Time,Method"];
   for (const [date, records] of Object.entries(data.attendance).sort()) {
     for (const [fid, info] of Object.entries(records)) {
       const faculty = data.faculty.find((f) => String(f.id) === fid);
       if (faculty) {
-        rows.push(`${faculty.name},${faculty.department},${date},${info.status},${info.timestamp},${info.method || "manual"}`);
+        rows.push(`${faculty.name},${faculty.department},${date},${info.status},${info.inTime || "-"},${info.outTime || "-"},${info.method || "manual"}`);
       }
     }
   }
