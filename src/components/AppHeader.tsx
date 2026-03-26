@@ -18,7 +18,7 @@ const AppHeader = () => {
         <div className="flex items-center gap-3">
           <img src="/favicon.png" alt="CMR Technical Campus" className="w-9 h-9 rounded-lg object-contain" />
           <span className="font-display font-extrabold text-lg gradient-text">
-            Faculty<span className="text-muted-foreground" style={{ WebkitTextFillColor: "hsl(var(--muted-foreground))" }}>Attend</span>
+            CMRTC<span className="text-muted-foreground" style={{ WebkitTextFillColor: "hsl(var(--muted-foreground))" }}> Faculty</span>
           </span>
         </div>
 
