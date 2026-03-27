@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { loadData, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
+import { fetchFaculty, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
 import { Download, Filter, LogIn, LogOut, Calendar } from "lucide-react";
 
@@ -11,16 +11,27 @@ const AttendanceHistoryTab = () => {
   const [departments, setDepartments] = useState<string[]>([]);
 
   useEffect(() => {
-    const data = loadData();
-    setFaculty(data.faculty);
-    setRecords(getAttendance(selectedDate));
-    setDepartments(getDepartments());
+    const load = async () => {
+      try {
+        const [fac, recs, depts] = await Promise.all([
+          fetchFaculty(),
+          getAttendance(selectedDate),
+          getDepartments(),
+        ]);
+        setFaculty(fac);
+        setRecords(recs);
+        setDepartments(depts);
+      } catch (err) {
+        console.error("Failed to load history:", err);
+      }
+    };
+    load();
   }, [selectedDate]);
 
   const filteredFaculty = selectedDept === "all" ? faculty : faculty.filter((f) => f.department === selectedDept);
 
-  const handleExport = () => {
-    const csv = exportCSV();
+  const handleExport = async () => {
+    const csv = await exportCSV();
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

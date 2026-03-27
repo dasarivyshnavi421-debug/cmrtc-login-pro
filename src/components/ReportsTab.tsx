@@ -1,35 +1,58 @@
 import { useEffect, useState } from "react";
-import { getStats, getDepartments, loadData, getAttendance } from "@/lib/attendance-store";
+import { getStats, getDepartments, getAttendance } from "@/lib/attendance-store";
 import { Filter, Calendar } from "lucide-react";
 
+interface StatRow {
+  id: number;
+  name: string;
+  department: string;
+  present: number;
+  absent: number;
+  leave: number;
+  totalDays: number;
+  percentage: number;
+}
+
 const ReportsTab = () => {
-  const [stats, setStats] = useState<ReturnType<typeof getStats>>([]);
+  const [stats, setStats] = useState<StatRow[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [departments, setDepartments] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [dailyRecords, setDailyRecords] = useState<Record<string, any>>({});
+  const [deptSummary, setDeptSummary] = useState<{ department: string; count: number; avgPct: number }[]>([]);
 
   useEffect(() => {
-    setDepartments(getDepartments());
+    getDepartments().then(setDepartments);
   }, []);
 
   useEffect(() => {
-    const dept = selectedDept === "all" ? undefined : selectedDept;
-    setStats(getStats(dept));
-    setDailyRecords(getAttendance(selectedDate));
+    const load = async () => {
+      const dept = selectedDept === "all" ? undefined : selectedDept;
+      const [s, r] = await Promise.all([getStats(dept), getAttendance(selectedDate)]);
+      setStats(s);
+      setDailyRecords(r);
+    };
+    load();
   }, [selectedDept, selectedDate]);
+
+  useEffect(() => {
+    const loadDeptSummary = async () => {
+      const summaries = await Promise.all(
+        departments.map(async (dept) => {
+          const deptStats = await getStats(dept);
+          const avgPct = deptStats.length > 0
+            ? Math.round(deptStats.reduce((sum, s) => sum + s.percentage, 0) / deptStats.length * 10) / 10
+            : 0;
+          return { department: dept, count: deptStats.length, avgPct };
+        })
+      );
+      setDeptSummary(summaries);
+    };
+    if (departments.length > 0) loadDeptSummary();
+  }, [departments]);
 
   const pctColor = (pct: number) => pct >= 75 ? "bg-success" : pct >= 50 ? "bg-warning" : "bg-destructive";
   const pctTextColor = (pct: number) => pct >= 75 ? "text-success" : pct >= 50 ? "text-warning" : "text-destructive";
-
-  // Department summary stats
-  const deptSummary = departments.map((dept) => {
-    const deptStats = getStats(dept);
-    const avgPct = deptStats.length > 0
-      ? Math.round(deptStats.reduce((sum, s) => sum + s.percentage, 0) / deptStats.length * 10) / 10
-      : 0;
-    return { department: dept, count: deptStats.length, avgPct };
-  });
 
   return (
     <div className="space-y-6">
