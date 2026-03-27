@@ -4,17 +4,22 @@ import { loadData, getAttendance } from "@/lib/attendance-store";
 import AppHeader from "@/components/AppHeader";
 import StatsCards from "@/components/StatsCards";
 import AttendanceTab from "@/components/AttendanceTab";
+import AttendanceHistoryTab from "@/components/AttendanceHistoryTab";
 import ReportsTab from "@/components/ReportsTab";
 import ManageFacultyTab from "@/components/ManageFacultyTab";
 import FaceVerificationTab from "@/components/FaceVerificationTab";
 import { motion } from "framer-motion";
-import { ClipboardList, BarChart3, Users, ScanFace } from "lucide-react";
+import { ClipboardList, BarChart3, Users, ScanFace, History } from "lucide-react";
 
-const tabs = [
-  { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
-  { id: "face", label: "Face Verify", icon: ScanFace },
+const adminTabs = [
+  { id: "history", label: "Attendance History", icon: History },
   { id: "report", label: "Reports", icon: BarChart3 },
   { id: "manage", label: "Manage Faculty", icon: Users },
+] as const;
+
+const facultyTabs = [
+  { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
+  { id: "face", label: "Face Verify", icon: ScanFace },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
