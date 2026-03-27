@@ -74,6 +74,7 @@ const Dashboard = () => {
 
         {/* Content */}
         <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          {activeTab === "history" && <AttendanceHistoryTab />}
           {activeTab === "attendance" && <AttendanceTab key={refreshKey} onUpdate={updateStats} />}
           {activeTab === "face" && <FaceVerificationTab onUpdate={updateStats} />}
           {activeTab === "report" && <ReportsTab key={refreshKey} />}
