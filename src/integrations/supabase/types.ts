@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attendance_records: {
+        Row: {
+          created_at: string
+          date: string
+          faculty_id: number
+          id: string
+          in_time: string | null
+          method: string | null
+          out_time: string | null
+          status: string
+          timestamp: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          faculty_id: number
+          id?: string
+          in_time?: string | null
+          method?: string | null
+          out_time?: string | null
+          status: string
+          timestamp?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          faculty_id?: number
+          id?: string
+          in_time?: string | null
+          method?: string | null
+          out_time?: string | null
+          status?: string
+          timestamp?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faculty: {
+        Row: {
+          created_at: string
+          department: string
+          email: string
+          face_descriptor: number[] | null
+          id: number
+          name: string
+          photo_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          email: string
+          face_descriptor?: number[] | null
+          id?: number
+          name: string
+          photo_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          email?: string
+          face_descriptor?: number[] | null
+          id?: number
+          name?: string
+          photo_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
