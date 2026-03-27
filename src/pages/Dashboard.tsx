@@ -4,24 +4,31 @@ import { loadData, getAttendance } from "@/lib/attendance-store";
 import AppHeader from "@/components/AppHeader";
 import StatsCards from "@/components/StatsCards";
 import AttendanceTab from "@/components/AttendanceTab";
+import AttendanceHistoryTab from "@/components/AttendanceHistoryTab";
 import ReportsTab from "@/components/ReportsTab";
 import ManageFacultyTab from "@/components/ManageFacultyTab";
 import FaceVerificationTab from "@/components/FaceVerificationTab";
 import { motion } from "framer-motion";
-import { ClipboardList, BarChart3, Users, ScanFace } from "lucide-react";
+import { ClipboardList, BarChart3, Users, ScanFace, History } from "lucide-react";
 
-const tabs = [
-  { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
-  { id: "face", label: "Face Verify", icon: ScanFace },
+const adminTabs = [
+  { id: "history", label: "Attendance History", icon: History },
   { id: "report", label: "Reports", icon: BarChart3 },
   { id: "manage", label: "Manage Faculty", icon: Users },
 ] as const;
 
-type TabId = (typeof tabs)[number]["id"];
+const facultyTabs = [
+  { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
+  { id: "face", label: "Face Verify", icon: ScanFace },
+] as const;
+
+type TabId = (typeof adminTabs)[number]["id"] | (typeof facultyTabs)[number]["id"];
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>("attendance");
+  const isAdmin = user?.role === "admin";
+  const visibleTabs = isAdmin ? adminTabs : facultyTabs;
+  const [activeTab, setActiveTab] = useState<TabId>(isAdmin ? "history" : "attendance");
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -40,11 +47,6 @@ const Dashboard = () => {
   };
 
   useEffect(updateStats, []);
-
-  // Faculty role: limit to face verification only
-  const visibleTabs = user?.role === "faculty"
-    ? tabs.filter((t) => t.id === "face" || t.id === "attendance")
-    : tabs;
 
   return (
     <div className="min-h-screen">
@@ -72,6 +74,7 @@ const Dashboard = () => {
 
         {/* Content */}
         <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+          {activeTab === "history" && <AttendanceHistoryTab />}
           {activeTab === "attendance" && <AttendanceTab key={refreshKey} onUpdate={updateStats} />}
           {activeTab === "face" && <FaceVerificationTab onUpdate={updateStats} />}
           {activeTab === "report" && <ReportsTab key={refreshKey} />}
