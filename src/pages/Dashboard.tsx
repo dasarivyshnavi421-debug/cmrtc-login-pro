@@ -22,11 +22,13 @@ const facultyTabs = [
   { id: "face", label: "Face Verify", icon: ScanFace },
 ] as const;
 
-type TabId = (typeof tabs)[number]["id"];
+type TabId = (typeof adminTabs)[number]["id"] | (typeof facultyTabs)[number]["id"];
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>("attendance");
+  const isAdmin = user?.role === "admin";
+  const visibleTabs = isAdmin ? adminTabs : facultyTabs;
+  const [activeTab, setActiveTab] = useState<TabId>(isAdmin ? "history" : "attendance");
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -45,11 +47,6 @@ const Dashboard = () => {
   };
 
   useEffect(updateStats, []);
-
-  // Faculty role: limit to face verification only
-  const visibleTabs = user?.role === "faculty"
-    ? tabs.filter((t) => t.id === "face" || t.id === "attendance")
-    : tabs;
 
   return (
     <div className="min-h-screen">
