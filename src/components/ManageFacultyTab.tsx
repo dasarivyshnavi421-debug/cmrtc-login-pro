@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { loadData, addFaculty, deleteFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
+import { fetchFaculty, addFaculty, deleteFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Camera, Upload, Plus } from "lucide-react";
@@ -14,36 +14,56 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
   const [name, setName] = useState("");
   const [dept, setDept] = useState("");
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const { toast } = useToast();
 
-  const refresh = () => {
-    setFaculty(loadData().faculty);
-    onUpdate();
+  const refresh = async () => {
+    try {
+      setFaculty(await fetchFaculty());
+      onUpdate();
+    } catch (err) {
+      console.error("Failed to load faculty:", err);
+    }
   };
 
-  useEffect(refresh, []);
+  useEffect(() => { refresh(); }, []);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!name.trim() || !dept.trim()) return toast({ title: "Name and department are required", variant: "destructive" });
-    addFaculty(name.trim(), dept.trim(), email.trim());
-    setName(""); setDept(""); setEmail("");
-    refresh();
-    toast({ title: "✅ Faculty added!" });
+    setLoading(true);
+    try {
+      await addFaculty(name.trim(), dept.trim(), email.trim());
+      setName(""); setDept(""); setEmail("");
+      await refresh();
+      toast({ title: "✅ Faculty added!" });
+    } catch {
+      toast({ title: "Failed to add faculty", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
-    deleteFaculty(id);
-    refresh();
-    toast({ title: "Faculty removed" });
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteFaculty(id);
+      await refresh();
+      toast({ title: "Faculty removed" });
+    } catch {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
   };
 
   const handlePhoto = (id: number, file: File) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      updateFacultyPhoto(id, reader.result as string);
-      refresh();
-      toast({ title: "📸 Photo uploaded!" });
+    reader.onload = async () => {
+      try {
+        await updateFacultyPhoto(id, reader.result as string);
+        await refresh();
+        toast({ title: "📸 Photo uploaded!" });
+      } catch {
+        toast({ title: "Failed to upload photo", variant: "destructive" });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -70,7 +90,9 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
             <label className="text-xs text-muted-foreground mb-1 block">Email</label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="faculty@college.edu" className="bg-muted border-border" />
           </div>
-          <Button onClick={handleAdd} className="w-full gradient-bg text-primary-foreground">Add Faculty</Button>
+          <Button onClick={handleAdd} disabled={loading} className="w-full gradient-bg text-primary-foreground">
+            {loading ? "Adding..." : "Add Faculty"}
+          </Button>
         </div>
       </div>
 

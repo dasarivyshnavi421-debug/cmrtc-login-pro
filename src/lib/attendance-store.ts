@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface Faculty {
   id: number;
   name: string;
@@ -15,64 +17,73 @@ export interface AttendanceRecord {
   outTime?: string;
 }
 
-export interface AttendanceData {
-  faculty: Faculty[];
-  attendance: Record<string, Record<string, AttendanceRecord>>;
+// ---- Faculty CRUD ----
+
+export async function fetchFaculty(): Promise<Faculty[]> {
+  const { data, error } = await supabase
+    .from("faculty")
+    .select("*")
+    .order("id");
+  if (error) throw error;
+  return (data || []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    department: f.department,
+    email: f.email,
+    photoUrl: f.photo_url ?? undefined,
+    faceDescriptor: f.face_descriptor ?? undefined,
+  }));
 }
 
-const STORAGE_KEY = "faculty_attendance_data";
-
-const DEFAULT_FACULTY: Faculty[] = [
-  { id: 1, name: "Dr. Priya Sharma", department: "Computer Science", email: "priya@college.edu" },
-  { id: 2, name: "Prof. Ravi Kumar", department: "Mathematics", email: "ravi@college.edu" },
-  { id: 3, name: "Dr. Anita Reddy", department: "Physics", email: "anita@college.edu" },
-  { id: 4, name: "Prof. Suresh Naidu", department: "Electronics", email: "suresh@college.edu" },
-  { id: 5, name: "Dr. Meena Verma", department: "Chemistry", email: "meena@college.edu" },
-];
-
-export function loadData(): AttendanceData {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) return JSON.parse(saved);
-  const data: AttendanceData = { faculty: DEFAULT_FACULTY, attendance: {} };
-  saveData(data);
-  return data;
+export async function getDepartments(): Promise<string[]> {
+  const faculty = await fetchFaculty();
+  return [...new Set(faculty.map((f) => f.department))].sort();
 }
 
-export function saveData(data: AttendanceData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+export async function addFaculty(name: string, department: string, email: string, photoUrl?: string): Promise<Faculty> {
+  const { data, error } = await supabase
+    .from("faculty")
+    .insert({ name, department, email, photo_url: photoUrl })
+    .select()
+    .single();
+  if (error) throw error;
+  return { id: data.id, name: data.name, department: data.department, email: data.email, photoUrl: data.photo_url ?? undefined };
 }
 
-export function getDepartments(): string[] {
-  const data = loadData();
-  return [...new Set(data.faculty.map((f) => f.department))].sort();
+export async function deleteFaculty(id: number) {
+  const { error } = await supabase.from("faculty").delete().eq("id", id);
+  if (error) throw error;
 }
 
-export function addFaculty(name: string, department: string, email: string, photoUrl?: string): Faculty {
-  const data = loadData();
-  const newId = Math.max(0, ...data.faculty.map((f) => f.id)) + 1;
-  const faculty: Faculty = { id: newId, name, department, email, photoUrl };
-  data.faculty.push(faculty);
-  saveData(data);
-  return faculty;
+export async function updateFacultyPhoto(id: number, photoUrl: string, faceDescriptor?: number[]) {
+  const update: Record<string, unknown> = { photo_url: photoUrl };
+  if (faceDescriptor) update.face_descriptor = faceDescriptor;
+  const { error } = await supabase.from("faculty").update(update).eq("id", id);
+  if (error) throw error;
 }
 
-export function deleteFaculty(id: number) {
-  const data = loadData();
-  data.faculty = data.faculty.filter((f) => f.id !== id);
-  saveData(data);
+// ---- Attendance ----
+
+export async function getAttendance(date: string): Promise<Record<string, AttendanceRecord>> {
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select("*")
+    .eq("date", date);
+  if (error) throw error;
+  const records: Record<string, AttendanceRecord> = {};
+  (data || []).forEach((r) => {
+    records[String(r.faculty_id)] = {
+      status: r.status as AttendanceRecord["status"],
+      timestamp: r.timestamp || "",
+      method: (r.method as "manual" | "face") || "manual",
+      inTime: r.in_time ?? undefined,
+      outTime: r.out_time ?? undefined,
+    };
+  });
+  return records;
 }
 
-export function updateFacultyPhoto(id: number, photoUrl: string, faceDescriptor?: number[]) {
-  const data = loadData();
-  const faculty = data.faculty.find((f) => f.id === id);
-  if (faculty) {
-    faculty.photoUrl = photoUrl;
-    if (faceDescriptor) faculty.faceDescriptor = faceDescriptor;
-    saveData(data);
-  }
-}
-
-export function markAttendance(
+export async function markAttendance(
   facultyId: number,
   date: string,
   status: AttendanceRecord["status"],
@@ -80,61 +91,89 @@ export function markAttendance(
   inTime?: string,
   outTime?: string
 ) {
-  const data = loadData();
-  if (!data.attendance[date]) data.attendance[date] = {};
-  const existing = data.attendance[date][String(facultyId)];
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-  data.attendance[date][String(facultyId)] = {
-    status,
-    timestamp: now,
-    method,
-    inTime: inTime || existing?.inTime || (status === "present" ? now : undefined),
-    outTime: outTime || existing?.outTime,
-  };
-  saveData(data);
-}
 
-export function markOutTime(facultyId: number, date: string) {
-  const data = loadData();
-  const record = data.attendance[date]?.[String(facultyId)];
-  if (record) {
-    record.outTime = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-    saveData(data);
+  // Check for existing record
+  const { data: existing } = await supabase
+    .from("attendance_records")
+    .select("*")
+    .eq("faculty_id", facultyId)
+    .eq("date", date)
+    .maybeSingle();
+
+  const record = {
+    faculty_id: facultyId,
+    date,
+    status,
+    method,
+    timestamp: now,
+    in_time: inTime || existing?.in_time || (status === "present" ? now : null),
+    out_time: outTime || existing?.out_time || null,
+  };
+
+  if (existing) {
+    const { error } = await supabase
+      .from("attendance_records")
+      .update(record)
+      .eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("attendance_records")
+      .insert(record);
+    if (error) throw error;
   }
 }
 
-export function getAttendance(date: string) {
-  const data = loadData();
-  return data.attendance[date] || {};
+export async function markOutTime(facultyId: number, date: string) {
+  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const { error } = await supabase
+    .from("attendance_records")
+    .update({ out_time: now })
+    .eq("faculty_id", facultyId)
+    .eq("date", date);
+  if (error) throw error;
 }
 
-export function getStats(department?: string) {
-  const data = loadData();
-  const filtered = department ? data.faculty.filter((f) => f.department === department) : data.faculty;
+export async function getStats(department?: string) {
+  const faculty = await fetchFaculty();
+  const filtered = department ? faculty.filter((f) => f.department === department) : faculty;
+
+  const { data: allRecords } = await supabase
+    .from("attendance_records")
+    .select("*");
+
+  const records = allRecords || [];
+  const uniqueDates = new Set(records.map((r) => r.date));
+  const totalDays = uniqueDates.size;
+
   return filtered.map((f) => {
-    const totalDays = Object.keys(data.attendance).length;
     let present = 0, absent = 0, leave = 0;
-    for (const records of Object.values(data.attendance)) {
-      const r = records[String(f.id)];
-      if (r?.status === "present") present++;
-      else if (r?.status === "absent") absent++;
-      else if (r?.status === "leave") leave++;
-    }
+    records.forEach((r) => {
+      if (r.faculty_id === f.id) {
+        if (r.status === "present") present++;
+        else if (r.status === "absent") absent++;
+        else if (r.status === "leave") leave++;
+      }
+    });
     const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100 * 10) / 10 : 0;
     return { ...f, present, absent, leave, totalDays, percentage };
   });
 }
 
-export function exportCSV(): string {
-  const data = loadData();
+export async function exportCSV(): Promise<string> {
+  const faculty = await fetchFaculty();
+  const { data: allRecords } = await supabase
+    .from("attendance_records")
+    .select("*")
+    .order("date");
+
   const rows = ["Faculty Name,Department,Date,Status,In Time,Out Time,Method"];
-  for (const [date, records] of Object.entries(data.attendance).sort()) {
-    for (const [fid, info] of Object.entries(records)) {
-      const faculty = data.faculty.find((f) => String(f.id) === fid);
-      if (faculty) {
-        rows.push(`${faculty.name},${faculty.department},${date},${info.status},${info.inTime || "-"},${info.outTime || "-"},${info.method || "manual"}`);
-      }
+  (allRecords || []).forEach((r) => {
+    const f = faculty.find((fac) => fac.id === r.faculty_id);
+    if (f) {
+      rows.push(`${f.name},${f.department},${r.date},${r.status},${r.in_time || "-"},${r.out_time || "-"},${r.method || "manual"}`);
     }
-  }
+  });
   return rows.join("\n");
 }

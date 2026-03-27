@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { loadData, markAttendance, markOutTime, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
+import { fetchFaculty, markAttendance, markOutTime, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
 import { Save, CheckCheck, Download, LogIn, LogOut, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -15,15 +15,26 @@ const AttendanceTab = ({ onUpdate }: Props) => {
   const [pending, setPending] = useState<Record<number, AttendanceRecord["status"]>>({});
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [departments, setDepartments] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const data = loadData();
-    setFaculty(data.faculty);
-    setRecords(getAttendance(selectedDate));
-    setDepartments(getDepartments());
-    setPending({});
-  }, [selectedDate]);
+  const loadAll = async () => {
+    try {
+      const [fac, recs, depts] = await Promise.all([
+        fetchFaculty(),
+        getAttendance(selectedDate),
+        getDepartments(),
+      ]);
+      setFaculty(fac);
+      setRecords(recs);
+      setDepartments(depts);
+      setPending({});
+    } catch (err) {
+      console.error("Failed to load attendance data:", err);
+    }
+  };
+
+  useEffect(() => { loadAll(); }, [selectedDate]);
 
   const filteredFaculty = selectedDept === "all" ? faculty : faculty.filter((f) => f.department === selectedDept);
 
@@ -31,21 +42,36 @@ const AttendanceTab = ({ onUpdate }: Props) => {
     setPending((prev) => ({ ...prev, [id]: status }));
   };
 
-  const saveAll = () => {
-    Object.entries(pending).forEach(([id, status]) => {
-      markAttendance(Number(id), selectedDate, status, "manual");
-    });
-    setRecords(getAttendance(selectedDate));
-    setPending({});
-    onUpdate();
-    toast({ title: "✅ Attendance saved!" });
+  const saveAll = async () => {
+    setSaving(true);
+    try {
+      await Promise.all(
+        Object.entries(pending).map(([id, status]) =>
+          markAttendance(Number(id), selectedDate, status, "manual")
+        )
+      );
+      const recs = await getAttendance(selectedDate);
+      setRecords(recs);
+      setPending({});
+      onUpdate();
+      toast({ title: "✅ Attendance saved!" });
+    } catch (err) {
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleMarkOut = (id: number) => {
-    markOutTime(id, selectedDate);
-    setRecords(getAttendance(selectedDate));
-    onUpdate();
-    toast({ title: "🕐 Out-time marked!" });
+  const handleMarkOut = async (id: number) => {
+    try {
+      await markOutTime(id, selectedDate);
+      const recs = await getAttendance(selectedDate);
+      setRecords(recs);
+      onUpdate();
+      toast({ title: "🕐 Out-time marked!" });
+    } catch {
+      toast({ title: "Failed to mark out-time", variant: "destructive" });
+    }
   };
 
   const markAllPresent = () => {
@@ -54,8 +80,8 @@ const AttendanceTab = ({ onUpdate }: Props) => {
     setPending(newPending);
   };
 
-  const handleExport = () => {
-    const csv = exportCSV();
+  const handleExport = async () => {
+    const csv = await exportCSV();
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -100,8 +126,8 @@ const AttendanceTab = ({ onUpdate }: Props) => {
             ))}
           </select>
         </div>
-        <Button onClick={saveAll} size="sm" className="gradient-bg text-primary-foreground gap-1.5">
-          <Save className="w-3.5 h-3.5" /> Save All
+        <Button onClick={saveAll} disabled={saving} size="sm" className="gradient-bg text-primary-foreground gap-1.5">
+          <Save className="w-3.5 h-3.5" /> {saving ? "Saving..." : "Save All"}
         </Button>
         <Button onClick={markAllPresent} variant="outline" size="sm" className="gap-1.5">
           <CheckCheck className="w-3.5 h-3.5" /> All Present

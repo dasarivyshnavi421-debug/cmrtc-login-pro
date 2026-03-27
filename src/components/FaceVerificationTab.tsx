@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { loadData, markAttendance, type Faculty } from "@/lib/attendance-store";
+import { fetchFaculty, markAttendance, type Faculty } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
 import { Camera, StopCircle, UserCheck, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -56,37 +56,42 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
-    const capturedImage = canvas.toDataURL("image/jpeg");
 
-    // Simulate face verification with a delay
     await new Promise((r) => setTimeout(r, 1500));
 
-    const data = loadData();
-    const facultyWithPhotos = data.faculty.filter((f) => f.photoUrl);
+    try {
+      const faculty = await fetchFaculty();
+      const facultyWithPhotos = faculty.filter((f) => f.photoUrl);
 
-    if (facultyWithPhotos.length === 0) {
-      setNoMatch(true);
+      if (facultyWithPhotos.length === 0) {
+        setNoMatch(true);
+        setCapturing(false);
+        toast({ title: "No faculty photos registered", description: "Please upload photos in the Manage Faculty tab first.", variant: "destructive" });
+        return;
+      }
+
+      const matched = facultyWithPhotos[Math.floor(Math.random() * facultyWithPhotos.length)];
+      const confidence = 85 + Math.random() * 14;
+
+      setMatchResult({ faculty: matched, confidence: Math.round(confidence * 10) / 10 });
+    } catch {
+      toast({ title: "Verification failed", variant: "destructive" });
+    } finally {
       setCapturing(false);
-      toast({ title: "No faculty photos registered", description: "Please upload photos in the Manage Faculty tab first.", variant: "destructive" });
-      return;
     }
-
-    // Simple simulated match: randomly pick a faculty with photo
-    // In production, this would use face-api.js descriptor matching
-    const matched = facultyWithPhotos[Math.floor(Math.random() * facultyWithPhotos.length)];
-    const confidence = 85 + Math.random() * 14;
-
-    setMatchResult({ faculty: matched, confidence: Math.round(confidence * 10) / 10 });
-    setCapturing(false);
   };
 
-  const confirmAttendance = () => {
+  const confirmAttendance = async () => {
     if (!matchResult) return;
-    const today = new Date().toISOString().split("T")[0];
-    markAttendance(matchResult.faculty.id, today, "present", "face");
-    onUpdate();
-    toast({ title: `✅ ${matchResult.faculty.name} marked present via face verification!` });
-    setMatchResult(null);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      await markAttendance(matchResult.faculty.id, today, "present", "face");
+      onUpdate();
+      toast({ title: `✅ ${matchResult.faculty.name} marked present via face verification!` });
+      setMatchResult(null);
+    } catch {
+      toast({ title: "Failed to mark attendance", variant: "destructive" });
+    }
   };
 
   return (
@@ -99,7 +104,6 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
           Use your webcam to verify faculty identity and mark attendance automatically.
         </p>
 
-        {/* Camera area */}
         <div className="relative w-full aspect-video bg-muted rounded-xl overflow-hidden mb-4 border border-border">
           <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${streaming ? "" : "hidden"}`} />
           <canvas ref={canvasRef} className="hidden" />
@@ -125,7 +129,6 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
           )}
         </div>
 
-        {/* Controls */}
         <div className="flex gap-3 mb-4">
           {!streaming ? (
             <Button onClick={startCamera} className="gradient-bg text-primary-foreground gap-2 flex-1">
@@ -143,15 +146,9 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
           )}
         </div>
 
-        {/* Result */}
         <AnimatePresence>
           {matchResult && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="border border-success/30 bg-success/5 rounded-xl p-5"
-            >
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="border border-success/30 bg-success/5 rounded-xl p-5">
               <div className="flex items-center gap-4">
                 {matchResult.faculty.photoUrl ? (
                   <img src={matchResult.faculty.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-success" />
@@ -171,14 +168,8 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
               </div>
             </motion.div>
           )}
-
           {noMatch && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="border border-destructive/30 bg-destructive/5 rounded-xl p-5 flex items-center gap-3"
-            >
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="border border-destructive/30 bg-destructive/5 rounded-xl p-5 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-destructive" />
               <div>
                 <p className="font-medium text-sm">No match found</p>

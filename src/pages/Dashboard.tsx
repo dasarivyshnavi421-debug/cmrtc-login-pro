@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { loadData, getAttendance } from "@/lib/attendance-store";
+import { fetchFaculty, getAttendance } from "@/lib/attendance-store";
 import AppHeader from "@/components/AppHeader";
 import StatsCards from "@/components/StatsCards";
 import AttendanceTab from "@/components/AttendanceTab";
@@ -32,21 +32,25 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const updateStats = () => {
-    const data = loadData();
-    const today = new Date().toISOString().split("T")[0];
-    const records = getAttendance(today);
-    const values = Object.values(records);
-    setStats({
-      total: data.faculty.length,
-      present: values.filter((r) => r.status === "present").length,
-      absent: values.filter((r) => r.status === "absent").length,
-      leave: values.filter((r) => r.status === "leave").length,
-    });
-    setRefreshKey((k) => k + 1);
+  const updateStats = async () => {
+    try {
+      const faculty = await fetchFaculty();
+      const today = new Date().toISOString().split("T")[0];
+      const records = await getAttendance(today);
+      const values = Object.values(records);
+      setStats({
+        total: faculty.length,
+        present: values.filter((r) => r.status === "present").length,
+        absent: values.filter((r) => r.status === "absent").length,
+        leave: values.filter((r) => r.status === "leave").length,
+      });
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    }
   };
 
-  useEffect(updateStats, []);
+  useEffect(() => { updateStats(); }, []);
 
   return (
     <div className="min-h-screen">
