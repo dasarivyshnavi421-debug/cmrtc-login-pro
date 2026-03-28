@@ -1,11 +1,12 @@
 import { useAuth } from "@/lib/auth-context";
-import { LogOut, Shield, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 const AppHeader = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const isFaculty = user?.role === "faculty";
 
   const handleLogout = () => {
     logout();
@@ -23,13 +24,16 @@ const AppHeader = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border">
+          <button
+            onClick={() => isFaculty ? navigate("/profile") : undefined}
+            className={`hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border ${isFaculty ? "cursor-pointer hover:bg-accent transition-colors" : ""}`}
+          >
             <User className="w-3.5 h-3.5" />
             <span>{user?.name}</span>
             <span className="text-xs px-1.5 py-0.5 rounded-full gradient-bg text-primary-foreground font-medium">
               {user?.role}
             </span>
-          </div>
+          </button>
           <div className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border hidden md:block">
             {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </div>

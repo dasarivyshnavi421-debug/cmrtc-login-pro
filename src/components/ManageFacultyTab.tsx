@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchFaculty, addFaculty, deleteFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Camera, Upload, Plus } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Trash2, Camera, Upload, Plus, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -15,6 +17,10 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
   const [dept, setDept] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDept, setEditDept] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const { toast } = useToast();
 
@@ -55,18 +61,49 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
   };
 
   const handlePhoto = (id: number, file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image must be less than 2MB", variant: "destructive" });
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         await updateFacultyPhoto(id, reader.result as string);
         await refresh();
-        toast({ title: "📸 Photo uploaded!" });
+        toast({ title: "📸 Photo updated!" });
       } catch {
         toast({ title: "Failed to upload photo", variant: "destructive" });
       }
     };
     reader.readAsDataURL(file);
   };
+
+  const startEdit = (f: Faculty) => {
+    setEditingId(f.id);
+    setEditName(f.name);
+    setEditDept(f.department);
+    setEditEmail(f.email);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = async () => {
+    if (!editingId || !editName.trim() || !editDept.trim()) return;
+    try {
+      const { error } = await supabase
+        .from("faculty")
+        .update({ name: editName.trim(), department: editDept.trim(), email: editEmail.trim() })
+        .eq("id", editingId);
+      if (error) throw error;
+      setEditingId(null);
+      await refresh();
+      toast({ title: "✅ Faculty updated!" });
+    } catch {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
+  };
+
+  const initials = (name: string) => name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -103,32 +140,38 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
             <tr className="bg-muted">
               <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Faculty</th>
               <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Photo</th>
-              <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Action</th>
+              <th className="px-4 py-3 text-left text-[0.7rem] font-display font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {faculty.map((f) => (
               <tr key={f.id} className="border-t border-border hover:bg-muted/50 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {f.photoUrl ? (
-                      <img src={f.photoUrl} alt={f.name} className="w-9 h-9 rounded-full object-cover border border-border" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground border border-border">
-                        {f.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{f.name}</p>
-                      <p className="text-xs text-muted-foreground">{f.department}</p>
+                  {editingId === f.id ? (
+                    <div className="space-y-2">
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="h-8 text-sm bg-muted border-border" />
+                      <Input value={editDept} onChange={(e) => setEditDept(e.target.value)} placeholder="Department" className="h-8 text-sm bg-muted border-border" />
+                      <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" className="h-8 text-sm bg-muted border-border" />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 border border-border">
+                        <AvatarImage src={f.photoUrl} alt={f.name} />
+                        <AvatarFallback className="text-xs font-bold bg-muted text-muted-foreground">{initials(f.name)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{f.name}</p>
+                        <p className="text-xs text-muted-foreground">{f.department}</p>
+                        {f.email && <p className="text-xs text-muted-foreground">{f.email}</p>}
+                      </div>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <input
                     ref={(el) => { fileInputRefs.current[f.id] = el; }}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png"
                     className="hidden"
                     onChange={(e) => e.target.files?.[0] && handlePhoto(f.id, e.target.files[0])}
                   />
@@ -143,9 +186,27 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
                   </Button>
                 </td>
                 <td className="px-4 py-3">
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(f.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {editingId === f.id ? (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={saveEdit} className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10">
+                          <Check className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEdit} className="text-muted-foreground hover:text-foreground">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(f)} className="text-muted-foreground hover:text-primary hover:bg-primary/10">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(f.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
