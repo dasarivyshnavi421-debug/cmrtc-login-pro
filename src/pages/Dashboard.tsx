@@ -21,6 +21,7 @@ const adminTabs = [
 const facultyTabs = [
   { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
   { id: "face", label: "Face Verify", icon: ScanFace },
+  { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
 type TabId = (typeof adminTabs)[number]["id"] | (typeof facultyTabs)[number]["id"];
