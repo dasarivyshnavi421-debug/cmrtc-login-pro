@@ -8,8 +8,9 @@ import AttendanceHistoryTab from "@/components/AttendanceHistoryTab";
 import ReportsTab from "@/components/ReportsTab";
 import ManageFacultyTab from "@/components/ManageFacultyTab";
 import FaceVerificationTab from "@/components/FaceVerificationTab";
+import SettingsTab from "@/components/SettingsTab";
 import { motion } from "framer-motion";
-import { ClipboardList, BarChart3, Users, ScanFace, History } from "lucide-react";
+import { ClipboardList, BarChart3, Users, ScanFace, History, Settings } from "lucide-react";
 
 const adminTabs = [
   { id: "history", label: "Attendance History", icon: History },
@@ -20,6 +21,7 @@ const adminTabs = [
 const facultyTabs = [
   { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
   { id: "face", label: "Face Verify", icon: ScanFace },
+  { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
 type TabId = (typeof adminTabs)[number]["id"] | (typeof facultyTabs)[number]["id"];
@@ -83,6 +85,7 @@ const Dashboard = () => {
           {activeTab === "face" && <FaceVerificationTab onUpdate={updateStats} />}
           {activeTab === "report" && <ReportsTab key={refreshKey} />}
           {activeTab === "manage" && <ManageFacultyTab onUpdate={updateStats} />}
+          {activeTab === "settings" && <SettingsTab />}
         </motion.div>
       </div>
     </div>
