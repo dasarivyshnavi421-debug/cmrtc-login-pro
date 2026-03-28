@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import FacultyProfile from "./pages/FacultyProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><FacultyProfile /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
