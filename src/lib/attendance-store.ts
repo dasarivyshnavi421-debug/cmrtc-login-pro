@@ -58,7 +58,7 @@ export async function deleteFaculty(id: number) {
 }
 
 export async function updateFacultyPhoto(id: number, photoUrl: string, faceDescriptor?: number[]) {
-  const update: Record<string, unknown> = { photo_url: photoUrl };
+  const update: Record<string, unknown> = { photo_url: photoUrl, profile_updated_at: new Date().toISOString() };
   if (faceDescriptor) update.face_descriptor = faceDescriptor;
   const { error } = await supabase.from("faculty").update(update).eq("id", id);
   if (error) throw error;

@@ -85,6 +85,7 @@ const Dashboard = () => {
           {activeTab === "face" && <FaceVerificationTab onUpdate={updateStats} />}
           {activeTab === "report" && <ReportsTab key={refreshKey} />}
           {activeTab === "manage" && <ManageFacultyTab onUpdate={updateStats} />}
+          {activeTab === "settings" && <SettingsTab />}
         </motion.div>
       </div>
     </div>
