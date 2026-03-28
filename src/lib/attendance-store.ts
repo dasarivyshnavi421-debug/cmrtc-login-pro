@@ -33,6 +33,7 @@ export async function fetchFaculty(): Promise<Faculty[]> {
     email: f.email,
     photoUrl: f.photo_url ?? undefined,
     faceDescriptor: f.face_descriptor ?? undefined,
+    profileUpdatedAt: f.profile_updated_at ?? undefined,
   }));
 }
 
