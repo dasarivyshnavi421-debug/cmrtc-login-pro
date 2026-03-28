@@ -7,6 +7,7 @@ export interface Faculty {
   email: string;
   photoUrl?: string;
   faceDescriptor?: number[];
+  profileUpdatedAt?: string;
 }
 
 export interface AttendanceRecord {
