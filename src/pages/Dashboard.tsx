@@ -8,8 +8,9 @@ import AttendanceHistoryTab from "@/components/AttendanceHistoryTab";
 import ReportsTab from "@/components/ReportsTab";
 import ManageFacultyTab from "@/components/ManageFacultyTab";
 import FaceVerificationTab from "@/components/FaceVerificationTab";
+import SettingsTab from "@/components/SettingsTab";
 import { motion } from "framer-motion";
-import { ClipboardList, BarChart3, Users, ScanFace, History } from "lucide-react";
+import { ClipboardList, BarChart3, Users, ScanFace, History, Settings } from "lucide-react";
 
 const adminTabs = [
   { id: "history", label: "Attendance History", icon: History },
