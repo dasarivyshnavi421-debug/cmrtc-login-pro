@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { fetchFaculty, type Faculty } from "@/lib/attendance-store";
+import { fetchFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Mail, Building2, CalendarClock, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ArrowLeft, User, Mail, Building2, CalendarClock, CheckCircle2, XCircle, Clock, Camera, BookOpen, GraduationCap, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
-import { format, subDays } from "date-fns";
+import { format, addYears, isBefore } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface AttendanceSummary {
   totalDays: number;
@@ -23,52 +24,73 @@ interface AttendanceSummary {
 const FacultyProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [faculty, setFaculty] = useState<Faculty | null>(null);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const load = async () => {
+  const loadData = async () => {
+    try {
+      const all = await fetchFaculty();
+      const match = all.find((f) => f.name === user?.name);
+      if (!match) { setLoading(false); return; }
+      setFaculty(match);
+
+      const { data: records } = await supabase
+        .from("attendance_records")
+        .select("*")
+        .eq("faculty_id", match.id)
+        .order("date", { ascending: false });
+
+      const recs = records || [];
+      const present = recs.filter((r) => r.status === "present").length;
+      const absent = recs.filter((r) => r.status === "absent").length;
+      const leave = recs.filter((r) => r.status === "leave").length;
+      const totalDays = recs.length;
+
+      setSummary({
+        totalDays,
+        present,
+        absent,
+        leave,
+        percentage: totalDays > 0 ? Math.round((present / totalDays) * 1000) / 10 : 0,
+        recentRecords: recs.slice(0, 15).map((r) => ({
+          date: r.date,
+          status: r.status,
+          inTime: r.in_time ?? undefined,
+          outTime: r.out_time ?? undefined,
+        })),
+      });
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, [user]);
+
+  const isPhotoUpdateAllowed = !faculty?.profileUpdatedAt || isBefore(addYears(new Date(faculty.profileUpdatedAt), 1), new Date());
+
+  const handlePhotoUpload = (file: File) => {
+    if (!faculty) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image must be less than 2MB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
       try {
-        const all = await fetchFaculty();
-        const match = all.find((f) => f.name === user?.name);
-        if (!match) { setLoading(false); return; }
-        setFaculty(match);
-
-        // Fetch attendance records for this faculty
-        const { data: records } = await supabase
-          .from("attendance_records")
-          .select("*")
-          .eq("faculty_id", match.id)
-          .order("date", { ascending: false });
-
-        const recs = records || [];
-        const present = recs.filter((r) => r.status === "present").length;
-        const absent = recs.filter((r) => r.status === "absent").length;
-        const leave = recs.filter((r) => r.status === "leave").length;
-        const totalDays = recs.length;
-
-        setSummary({
-          totalDays,
-          present,
-          absent,
-          leave,
-          percentage: totalDays > 0 ? Math.round((present / totalDays) * 1000) / 10 : 0,
-          recentRecords: recs.slice(0, 15).map((r) => ({
-            date: r.date,
-            status: r.status,
-            inTime: r.in_time ?? undefined,
-            outTime: r.out_time ?? undefined,
-          })),
-        });
-      } catch (err) {
-        console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
+        await updateFacultyPhoto(faculty.id, reader.result as string);
+        toast({ title: "📸 Profile photo updated!" });
+        await loadData();
+      } catch {
+        toast({ title: "Failed to upload photo", variant: "destructive" });
       }
     };
-    load();
-  }, [user]);
+    reader.readAsDataURL(file);
+  };
 
   const initials = faculty?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?";
 
@@ -103,27 +125,50 @@ const FacultyProfile = () => {
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Profile Header */}
           <Card className="overflow-hidden">
             <div className="h-24 gradient-bg" />
             <CardContent className="relative pb-6">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-12">
-                <Avatar className="h-24 w-24 border-4 border-card shadow-lg">
-                  <AvatarImage src={faculty.photoUrl} alt={faculty.name} />
-                  <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-center sm:text-left pb-1">
+                <div className="relative group">
+                  <Avatar className="h-24 w-24 border-4 border-card shadow-lg">
+                    <AvatarImage src={faculty.photoUrl} alt={faculty.name} />
+                    <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isPhotoUpdateAllowed && (
+                    <>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        className="hidden"
+                        onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
+                      />
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="text-center sm:text-left pb-1 flex-1">
                   <h1 className="text-xl font-display font-bold text-foreground">{faculty.name}</h1>
                   <p className="text-sm text-muted-foreground">{faculty.department}</p>
                 </div>
+                {!isPhotoUpdateAllowed && faculty.profileUpdatedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Photo update available {format(addYears(new Date(faculty.profileUpdatedAt), 1), "dd MMM yyyy")}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Details */}
+        {/* Personal Details */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card>
             <CardHeader>
@@ -142,6 +187,18 @@ const FacultyProfile = () => {
           </Card>
         </motion.div>
 
+        {/* Quick Stats */}
+        {summary && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <QuickStatCard icon={BookOpen} label="Classes Attended" value={summary.present} color="text-emerald-500" />
+              <QuickStatCard icon={GraduationCap} label="Classes Held" value={summary.totalDays} color="text-primary" />
+              <QuickStatCard icon={BarChart3} label="Total Attendance" value={`${summary.percentage}%`} color="text-amber-500" />
+              <QuickStatCard icon={Clock} label="On Leave" value={summary.leave} color="text-muted-foreground" />
+            </div>
+          </motion.div>
+        )}
+
         {/* Attendance Summary */}
         {summary && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -152,13 +209,6 @@ const FacultyProfile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                  <StatBox label="Total Days" value={summary.totalDays} color="text-foreground" />
-                  <StatBox label="Present" value={summary.present} color="text-emerald-500" />
-                  <StatBox label="Absent" value={summary.absent} color="text-destructive" />
-                  <StatBox label="On Leave" value={summary.leave} color="text-amber-500" />
-                </div>
-
                 {/* Attendance percentage bar */}
                 <div className="mb-6">
                   <div className="flex justify-between text-sm mb-1">
@@ -210,11 +260,14 @@ const DetailRow = ({ icon: Icon, label, value }: { icon: React.ElementType; labe
   </div>
 );
 
-const StatBox = ({ label, value, color }: { label: string; value: number; color: string }) => (
-  <div className="text-center p-3 rounded-lg bg-muted/50 border border-border">
-    <p className={`text-2xl font-bold ${color}`}>{value}</p>
-    <p className="text-xs text-muted-foreground">{label}</p>
-  </div>
+const QuickStatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number | string; color: string }) => (
+  <Card>
+    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+      <Icon className={`w-5 h-5 ${color}`} />
+      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </CardContent>
+  </Card>
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
