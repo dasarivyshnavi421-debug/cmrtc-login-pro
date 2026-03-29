@@ -1,0 +1,1 @@
+ALTER TABLE public.faculty ADD COLUMN login_password text;

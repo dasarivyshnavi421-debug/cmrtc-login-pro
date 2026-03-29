@@ -68,6 +68,7 @@ export type Database = {
           email: string
           face_descriptor: number[] | null
           id: number
+          login_password: string | null
           name: string
           photo_url: string | null
           profile_updated_at: string | null
@@ -78,6 +79,7 @@ export type Database = {
           email: string
           face_descriptor?: number[] | null
           id?: number
+          login_password?: string | null
           name: string
           photo_url?: string | null
           profile_updated_at?: string | null
@@ -88,6 +90,7 @@ export type Database = {
           email?: string
           face_descriptor?: number[] | null
           id?: number
+          login_password?: string | null
           name?: string
           photo_url?: string | null
           profile_updated_at?: string | null
