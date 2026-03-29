@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -20,10 +20,7 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 800));
-    
-    const success = login(email, password);
+    const success = await login(email, password);
     setIsLoading(false);
     
     if (success) {
@@ -36,7 +33,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background effects */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-[120px]" />
@@ -48,7 +44,6 @@ const Login = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
           <motion.div
             initial={{ scale: 0.8 }}
@@ -64,7 +59,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="glass-surface rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -73,7 +67,7 @@ const Login = () => {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="email"
-                  placeholder="admin@college.edu"
+                  placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 bg-muted border-border focus:border-primary"
@@ -120,19 +114,9 @@ const Login = () => {
           </form>
 
           <div className="mt-6 pt-5 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center mb-3">Demo Credentials</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="glass-surface rounded-lg p-3">
-                <p className="font-medium text-primary">Admin</p>
-                <p className="text-muted-foreground mt-1">admin@college.edu</p>
-                <p className="text-muted-foreground">admin123</p>
-              </div>
-              <div className="glass-surface rounded-lg p-3">
-                <p className="font-medium text-secondary">Faculty</p>
-                <p className="text-muted-foreground mt-1">priya@college.edu</p>
-                <p className="text-muted-foreground">faculty123</p>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Faculty credentials are provided by your admin.
+            </p>
           </div>
         </div>
       </motion.div>

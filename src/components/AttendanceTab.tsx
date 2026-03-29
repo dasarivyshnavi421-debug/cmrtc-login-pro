@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { fetchFaculty, markAttendance, markOutTime, getAttendance, getDepartments, exportCSV, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
+import { fetchFaculty, markAttendance, markOutTime, getAttendance, getDepartments, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
-import { Save, CheckCheck, Download, LogIn, LogOut, Filter } from "lucide-react";
+import { Save, CheckCheck, LogIn, LogOut, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -55,7 +55,7 @@ const AttendanceTab = ({ onUpdate }: Props) => {
       setPending({});
       onUpdate();
       toast({ title: "✅ Attendance saved!" });
-    } catch (err) {
+    } catch {
       toast({ title: "Failed to save", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -78,17 +78,6 @@ const AttendanceTab = ({ onUpdate }: Props) => {
     const newPending: Record<number, AttendanceRecord["status"]> = {};
     filteredFaculty.forEach((f) => { newPending[f.id] = "present"; });
     setPending(newPending);
-  };
-
-  const handleExport = async () => {
-    const csv = await exportCSV();
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance_${selectedDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const getStatus = (id: number) => pending[id] || records[String(id)]?.status || "";
@@ -131,9 +120,6 @@ const AttendanceTab = ({ onUpdate }: Props) => {
         </Button>
         <Button onClick={markAllPresent} variant="outline" size="sm" className="gap-1.5">
           <CheckCheck className="w-3.5 h-3.5" /> All Present
-        </Button>
-        <Button onClick={handleExport} variant="outline" size="sm" className="gap-1.5">
-          <Download className="w-3.5 h-3.5" /> Export CSV
         </Button>
       </div>
 
