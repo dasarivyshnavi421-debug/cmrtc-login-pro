@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trash2, Camera, Upload, Plus, Pencil, Check, X } from "lucide-react";
+import { Trash2, Camera, Upload, Plus, Pencil, Check, X, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -16,11 +16,14 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
   const [name, setName] = useState("");
   const [dept, setDept] = useState("");
   const [email, setEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editDept, setEditDept] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const addPhotoRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const { toast } = useToast();
 
@@ -35,14 +38,27 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
 
   useEffect(() => { refresh(); }, []);
 
+  const handleAddPhoto = (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image must be less than 2MB", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setProfilePhoto(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleAdd = async () => {
-    if (!name.trim() || !dept.trim()) return toast({ title: "Name and department are required", variant: "destructive" });
+    if (!name.trim() || !dept.trim() || !email.trim()) return toast({ title: "Name, department and email are required", variant: "destructive" });
+    if (!loginPassword.trim()) return toast({ title: "Login password is required for faculty", variant: "destructive" });
     setLoading(true);
     try {
-      await addFaculty(name.trim(), dept.trim(), email.trim());
-      setName(""); setDept(""); setEmail("");
+      const newFaculty = await addFaculty(name.trim(), dept.trim(), email.trim(), profilePhoto || undefined);
+      // Set login password
+      await supabase.from("faculty").update({ login_password: loginPassword.trim() }).eq("id", newFaculty.id);
+      setName(""); setDept(""); setEmail(""); setLoginPassword(""); setProfilePhoto(null);
       await refresh();
-      toast({ title: "✅ Faculty added!" });
+      toast({ title: "✅ Faculty added with login credentials!" });
     } catch {
       toast({ title: "Failed to add faculty", variant: "destructive" });
     } finally {
@@ -113,6 +129,28 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
           <Plus className="w-4 h-4 text-primary" /> Add New Faculty
         </h3>
         <div className="space-y-3">
+          {/* Profile photo preview */}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Avatar className="h-16 w-16 border-2 border-border">
+                <AvatarImage src={profilePhoto || undefined} />
+                <AvatarFallback className="text-lg font-bold bg-muted text-muted-foreground">
+                  {name ? initials(name) : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <input
+                ref={addPhotoRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleAddPhoto(e.target.files[0])}
+              />
+            </div>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => addPhotoRef.current?.click()}>
+              <Camera className="w-3.5 h-3.5" /> {profilePhoto ? "Change Photo" : "Upload Photo"}
+            </Button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Full Name *</label>
@@ -124,8 +162,14 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Email *</label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="faculty@college.edu" className="bg-muted border-border" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
+              <KeyRound className="w-3 h-3" /> Login Password *
+            </label>
+            <Input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="Set faculty login password" className="bg-muted border-border" />
           </div>
           <Button onClick={handleAdd} disabled={loading} className="w-full gradient-bg text-primary-foreground">
             {loading ? "Adding..." : "Add Faculty"}

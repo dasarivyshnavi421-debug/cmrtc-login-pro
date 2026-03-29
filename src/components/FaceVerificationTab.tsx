@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchFaculty, markAttendance, type Faculty } from "@/lib/attendance-store";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Camera, StopCircle, UserCheck, AlertCircle, Loader2 } from "lucide-react";
+import { Camera, StopCircle, UserCheck, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -10,11 +11,13 @@ interface Props {
 }
 
 const FaceVerificationTab = ({ onUpdate }: Props) => {
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [streaming, setStreaming] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [matchResult, setMatchResult] = useState<{ faculty: Faculty; confidence: number } | null>(null);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
   const [noMatch, setNoMatch] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
@@ -28,6 +31,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
         setStreaming(true);
         setMatchResult(null);
         setNoMatch(false);
+        setAttendanceMarked(false);
       }
     } catch {
       toast({ title: "Camera access denied", description: "Please allow camera access to use face verification.", variant: "destructive" });
@@ -48,6 +52,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
     setCapturing(true);
     setMatchResult(null);
     setNoMatch(false);
+    setAttendanceMarked(false);
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -61,36 +66,29 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
 
     try {
       const faculty = await fetchFaculty();
-      const facultyWithPhotos = faculty.filter((f) => f.photoUrl);
+      // Match the logged-in faculty by name
+      const myFaculty = faculty.find((f) => f.name === user?.name);
 
-      if (facultyWithPhotos.length === 0) {
+      if (!myFaculty || !myFaculty.photoUrl) {
         setNoMatch(true);
         setCapturing(false);
-        toast({ title: "No faculty photos registered", description: "Please upload photos in the Manage Faculty tab first.", variant: "destructive" });
+        toast({ title: "No photo registered", description: "Please upload your profile photo in Settings first.", variant: "destructive" });
         return;
       }
 
-      const matched = facultyWithPhotos[Math.floor(Math.random() * facultyWithPhotos.length)];
       const confidence = 85 + Math.random() * 14;
+      setMatchResult({ faculty: myFaculty, confidence: Math.round(confidence * 10) / 10 });
 
-      setMatchResult({ faculty: matched, confidence: Math.round(confidence * 10) / 10 });
+      // Auto-mark attendance
+      const today = new Date().toISOString().split("T")[0];
+      await markAttendance(myFaculty.id, today, "present", "face");
+      onUpdate();
+      setAttendanceMarked(true);
+      toast({ title: `✅ ${myFaculty.name} marked present via face verification!` });
     } catch {
       toast({ title: "Verification failed", variant: "destructive" });
     } finally {
       setCapturing(false);
-    }
-  };
-
-  const confirmAttendance = async () => {
-    if (!matchResult) return;
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      await markAttendance(matchResult.faculty.id, today, "present", "face");
-      onUpdate();
-      toast({ title: `✅ ${matchResult.faculty.name} marked present via face verification!` });
-      setMatchResult(null);
-    } catch {
-      toast({ title: "Failed to mark attendance", variant: "destructive" });
     }
   };
 
@@ -101,7 +99,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
           <Camera className="w-4 h-4 text-primary" /> Face Verification Attendance
         </h3>
         <p className="text-sm text-muted-foreground mb-5">
-          Use your webcam to verify faculty identity and mark attendance automatically.
+          Use your webcam to verify your identity and mark attendance automatically.
         </p>
 
         <div className="relative w-full aspect-video bg-muted rounded-xl overflow-hidden mb-4 border border-border">
@@ -162,9 +160,12 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
                   <p className="text-sm text-muted-foreground">{matchResult.faculty.department}</p>
                   <p className="text-xs text-success mt-1">Confidence: {matchResult.confidence}%</p>
                 </div>
-                <Button onClick={confirmAttendance} size="sm" className="bg-success text-success-foreground hover:bg-success/90 gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" /> Confirm
-                </Button>
+                {attendanceMarked && (
+                  <div className="flex items-center gap-1.5 text-success text-sm font-medium">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Marked Present
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -173,7 +174,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
               <AlertCircle className="w-5 h-5 text-destructive" />
               <div>
                 <p className="font-medium text-sm">No match found</p>
-                <p className="text-xs text-muted-foreground">Ensure faculty photos are uploaded in the Manage Faculty tab.</p>
+                <p className="text-xs text-muted-foreground">Ensure your profile photo is uploaded in Settings.</p>
               </div>
             </motion.div>
           )}

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
@@ -9,18 +10,14 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEMO_USERS: (User & { password: string })[] = [
-  { id: "admin-1", email: "admin@college.edu", password: "admin123", name: "Admin", role: "admin" },
-  { id: "faculty-1", email: "priya@college.edu", password: "faculty123", name: "Dr. Priya Sharma", role: "faculty" },
-  { id: "faculty-2", email: "ravi@college.edu", password: "faculty123", name: "Prof. Ravi Kumar", role: "faculty" },
-];
+const ADMIN_USER = { id: "admin-1", email: "admin@college.edu", password: "admin123", name: "Admin", role: "admin" as const };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -28,14 +25,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
 
-  const login = useCallback((email: string, password: string) => {
-    const found = DEMO_USERS.find((u) => u.email === email && u.password === password);
-    if (found) {
-      const { password: _, ...userData } = found;
+  const login = useCallback(async (email: string, password: string) => {
+    // Check admin first
+    if (email === ADMIN_USER.email && password === ADMIN_USER.password) {
+      const { password: _, ...userData } = ADMIN_USER;
       setUser(userData);
       localStorage.setItem("att_user", JSON.stringify(userData));
       return true;
     }
+
+    // Check faculty from database
+    try {
+      const { data, error } = await supabase
+        .from("faculty")
+        .select("*")
+        .eq("email", email)
+        .eq("login_password", password)
+        .maybeSingle();
+
+      if (!error && data) {
+        const userData: User = {
+          id: `faculty-${data.id}`,
+          email: data.email,
+          name: data.name,
+          role: "faculty",
+        };
+        setUser(userData);
+        localStorage.setItem("att_user", JSON.stringify(userData));
+        return true;
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+    }
+
     return false;
   }, []);
 
