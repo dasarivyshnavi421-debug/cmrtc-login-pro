@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import FacultyProfile from "./pages/FacultyProfile";
+import AdminProfile from "./pages/AdminProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
