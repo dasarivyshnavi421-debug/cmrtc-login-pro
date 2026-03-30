@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { fetchFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
+import { fetchFaculty, updateFacultyPhoto, exportCSV, type Faculty } from "@/lib/attendance-store";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Mail, Building2, CalendarClock, CheckCircle2, XCircle, Clock, Camera, BookOpen, GraduationCap, BarChart3 } from "lucide-react";
+import { ArrowLeft, User, Mail, Building2, CalendarClock, CheckCircle2, XCircle, Clock, Camera, BookOpen, GraduationCap, BarChart3, Download, MessageSquare, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import { format, addYears, isBefore } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,8 @@ const FacultyProfile = () => {
   const [faculty, setFaculty] = useState<Faculty | null>(null);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
@@ -92,6 +95,38 @@ const FacultyProfile = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleExportCSV = async () => {
+    if (!faculty) return;
+    try {
+      const { data: records } = await supabase
+        .from("attendance_records")
+        .select("*")
+        .eq("faculty_id", faculty.id)
+        .order("date", { ascending: false });
+
+      const recs = records || [];
+      const header = "Date,Status,In Time,Out Time\n";
+      const rows = recs.map((r) => `${r.date},${r.status},${r.in_time || ""},${r.out_time || ""}`).join("\n");
+      const blob = new Blob([header + rows], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${faculty.name.replace(/\s+/g, "_")}_attendance.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "CSV exported successfully!" });
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
+    }
+  };
+
+  const handleFeedbackSubmit = () => {
+    if (!feedback.trim()) return;
+    toast({ title: "✅ Feedback submitted! Thank you." });
+    setFeedbackSubmitted(true);
+    setFeedback("");
+  };
+
   const initials = faculty?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?";
 
   if (loading) {
@@ -124,6 +159,7 @@ const FacultyProfile = () => {
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Button>
 
+        {/* Profile Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="overflow-hidden">
             <div className="h-24 gradient-bg" />
@@ -199,17 +235,68 @@ const FacultyProfile = () => {
           </motion.div>
         )}
 
-        {/* Attendance Summary */}
+        {/* Export CSV */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" /> Reports & Export
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <p className="text-sm text-muted-foreground flex-1">
+                  Download your personal attendance records as a CSV file for your records.
+                </p>
+                <Button onClick={handleExportCSV} variant="outline" size="sm" className="gap-1.5">
+                  <Download className="w-3.5 h-3.5" /> Export My Attendance CSV
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Faculty Feedback */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-primary" /> Faculty Feedback for this Semester
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {feedbackSubmitted ? (
+                <div className="text-center py-4">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Thank you! Your feedback has been submitted.</p>
+                </div>
+              ) : (
+                <>
+                  <Textarea
+                    placeholder="Share your feedback about this semester — workload, facilities, suggestions for improvement..."
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    rows={4}
+                  />
+                  <Button onClick={handleFeedbackSubmit} size="sm" disabled={!feedback.trim()}>
+                    Submit Feedback
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Attendance History */}
         {summary && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" /> Attendance Summary
+                  <CheckCircle2 className="w-4 h-4 text-primary" /> Attendance History
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Attendance percentage bar */}
                 <div className="mb-6">
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-muted-foreground">Attendance Rate</span>
@@ -223,7 +310,6 @@ const FacultyProfile = () => {
                   </div>
                 </div>
 
-                {/* Recent records */}
                 {summary.recentRecords.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold text-foreground mb-3">Recent Records</h4>

@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import FacultyProfile from "./pages/FacultyProfile";
+import AdminProfile from "./pages/AdminProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><FacultyProfile /></ProtectedRoute>} />
+            <Route path="/admin-profile" element={<ProtectedRoute><AdminProfile /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
