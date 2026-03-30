@@ -17,7 +17,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const ADMIN_USER = { id: "admin-1", email: "admin@college.edu", password: "admin123", name: "Admin", role: "admin" as const };
+const ADMIN_USER = { id: "admin-1", email: "subhashcsm@cmrtc.ac.in", password: "subhash123", name: "Dr. Subhash", role: "admin" as const };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
