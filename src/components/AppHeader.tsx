@@ -27,8 +27,11 @@ const AppHeader = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => isFaculty ? navigate("/profile") : undefined}
-            className={`hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border ${isFaculty ? "cursor-pointer hover:bg-accent transition-colors" : ""}`}
+            onClick={() => {
+              if (isFaculty) navigate("/profile");
+              else if (user?.role === "admin") navigate("/admin-profile");
+            }}
+            className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border cursor-pointer hover:bg-accent transition-colors"
           >
             <User className="w-3.5 h-3.5" />
             <span>{user?.name}</span>
