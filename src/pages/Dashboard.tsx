@@ -7,10 +7,9 @@ import AttendanceTab from "@/components/AttendanceTab";
 import AttendanceHistoryTab from "@/components/AttendanceHistoryTab";
 import ReportsTab from "@/components/ReportsTab";
 import ManageFacultyTab from "@/components/ManageFacultyTab";
-import FaceVerificationTab from "@/components/FaceVerificationTab";
-import SettingsTab from "@/components/SettingsTab";
+import FacultyDashboard from "@/components/FacultyDashboard";
 import { motion } from "framer-motion";
-import { ClipboardList, BarChart3, Users, ScanFace, History, Settings } from "lucide-react";
+import { BarChart3, Users, History } from "lucide-react";
 
 const adminTabs = [
   { id: "history", label: "Attendance History", icon: History },
@@ -18,19 +17,12 @@ const adminTabs = [
   { id: "manage", label: "Manage Faculty", icon: Users },
 ] as const;
 
-const facultyTabs = [
-  { id: "attendance", label: "Mark Attendance", icon: ClipboardList },
-  { id: "face", label: "Face Verify", icon: ScanFace },
-  { id: "settings", label: "Settings", icon: Settings },
-] as const;
-
-type TabId = (typeof adminTabs)[number]["id"] | (typeof facultyTabs)[number]["id"];
+type TabId = (typeof adminTabs)[number]["id"];
 
 const Dashboard = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const visibleTabs = isAdmin ? adminTabs : facultyTabs;
-  const [activeTab, setActiveTab] = useState<TabId>(isAdmin ? "history" : "attendance");
+  const [activeTab, setActiveTab] = useState<TabId>("history");
   const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, leave: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -54,6 +46,18 @@ const Dashboard = () => {
 
   useEffect(() => { updateStats(); }, []);
 
+  // Faculty gets the minimal face-verification dashboard
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen">
+        <AppHeader />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <FacultyDashboard onUpdate={updateStats} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <AppHeader />
@@ -62,7 +66,7 @@ const Dashboard = () => {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-card border border-border rounded-xl p-1.5 w-fit mb-6 overflow-x-auto">
-          {visibleTabs.map((tab) => (
+          {adminTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -81,11 +85,8 @@ const Dashboard = () => {
         {/* Content */}
         <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           {activeTab === "history" && <AttendanceHistoryTab />}
-          {activeTab === "attendance" && <AttendanceTab key={refreshKey} onUpdate={updateStats} />}
-          {activeTab === "face" && <FaceVerificationTab onUpdate={updateStats} />}
           {activeTab === "report" && <ReportsTab key={refreshKey} />}
           {activeTab === "manage" && <ManageFacultyTab onUpdate={updateStats} />}
-          {activeTab === "settings" && <SettingsTab />}
         </motion.div>
       </div>
     </div>
