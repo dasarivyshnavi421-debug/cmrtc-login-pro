@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchFaculty, markAttendance, type Faculty } from "@/lib/attendance-store";
+import { loadFaceModels, getDescriptorFromVideo, getDescriptorFromImage, compareFaces } from "@/lib/face-detection";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Camera, StopCircle, UserCheck, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Camera, StopCircle, UserCheck, AlertCircle, Loader2, CheckCircle2, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,8 +21,28 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
   const [matchResult, setMatchResult] = useState<{ faculty: Faculty; confidence: number } | null>(null);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
   const [noMatch, setNoMatch] = useState(false);
+  const [noFace, setNoFace] = useState(false);
+  const [modelsReady, setModelsReady] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+
+  // Load face models on mount
+  useEffect(() => {
+    const init = async () => {
+      setLoadingModels(true);
+      try {
+        await loadFaceModels();
+        setModelsReady(true);
+      } catch (err) {
+        console.error("Failed to load face models:", err);
+        toast({ title: "Failed to load face recognition models", variant: "destructive" });
+      } finally {
+        setLoadingModels(false);
+      }
+    };
+    init();
+  }, [toast]);
 
   const startCamera = async () => {
     try {
@@ -31,6 +53,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
         setStreaming(true);
         setMatchResult(null);
         setNoMatch(false);
+        setNoFace(false);
         setAttendanceMarked(false);
       }
     } catch {
@@ -52,21 +75,11 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
     setCapturing(true);
     setMatchResult(null);
     setNoMatch(false);
+    setNoFace(false);
     setAttendanceMarked(false);
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-
-    await new Promise((r) => setTimeout(r, 1500));
 
     try {
       const faculty = await fetchFaculty();
-      // Match the logged-in faculty by name
       const myFaculty = faculty.find((f) => f.name === user?.name);
 
       if (!myFaculty || !myFaculty.photoUrl) {
@@ -76,16 +89,56 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
         return;
       }
 
-      const confidence = 85 + Math.random() * 14;
-      setMatchResult({ faculty: myFaculty, confidence: Math.round(confidence * 10) / 10 });
+      // Detect face from live camera
+      const liveDescriptor = await getDescriptorFromVideo(videoRef.current);
+
+      if (!liveDescriptor) {
+        setNoFace(true);
+        setCapturing(false);
+        toast({ title: "No face detected", description: "Position your face clearly in the camera.", variant: "destructive" });
+        return;
+      }
+
+      // Get or compute profile face descriptor
+      let profileDescriptor: Float32Array | number[] | null = null;
+
+      if (myFaculty.faceDescriptor && myFaculty.faceDescriptor.length > 0) {
+        profileDescriptor = myFaculty.faceDescriptor;
+      } else {
+        profileDescriptor = await getDescriptorFromImage(myFaculty.photoUrl);
+        if (!profileDescriptor) {
+          setNoMatch(true);
+          setCapturing(false);
+          toast({ title: "Cannot detect face in profile photo", description: "Please upload a clear face photo.", variant: "destructive" });
+          return;
+        }
+        // Store for future use
+        await supabase
+          .from("faculty")
+          .update({ face_descriptor: Array.from(profileDescriptor) })
+          .eq("id", myFaculty.id);
+      }
+
+      // Compare faces
+      const result = compareFaces(liveDescriptor, profileDescriptor);
+
+      if (!result.match) {
+        setNoMatch(true);
+        setCapturing(false);
+        toast({ title: "Face does not match", description: `Confidence: ${result.confidence}%. Please try again.`, variant: "destructive" });
+        return;
+      }
+
+      setMatchResult({ faculty: myFaculty, confidence: result.confidence });
 
       // Auto-mark attendance
       const today = new Date().toISOString().split("T")[0];
       await markAttendance(myFaculty.id, today, "present", "face");
       onUpdate();
       setAttendanceMarked(true);
-      toast({ title: `✅ ${myFaculty.name} marked present via face verification!` });
-    } catch {
+      toast({ title: `✅ ${myFaculty.name} verified & marked present! (${result.confidence}%)` });
+    } catch (err) {
+      console.error("Verification error:", err);
       toast({ title: "Verification failed", variant: "destructive" });
     } finally {
       setCapturing(false);
@@ -98,9 +151,23 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
         <h3 className="font-display font-semibold text-base mb-2 flex items-center gap-2">
           <Camera className="w-4 h-4 text-primary" /> Face Verification Attendance
         </h3>
-        <p className="text-sm text-muted-foreground mb-5">
-          Use your webcam to verify your identity and mark attendance automatically.
+        <p className="text-sm text-muted-foreground mb-2">
+          Your live face will be matched against your registered profile photo using AI face recognition.
         </p>
+
+        {/* Model status */}
+        {loadingModels && (
+          <div className="flex items-center gap-2 text-primary text-xs mb-4">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Loading face recognition models...</span>
+          </div>
+        )}
+        {modelsReady && !loadingModels && (
+          <div className="flex items-center gap-2 text-success text-xs mb-4">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Face recognition ready</span>
+          </div>
+        )}
 
         <div className="relative w-full aspect-video bg-muted rounded-xl overflow-hidden mb-4 border border-border">
           <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${streaming ? "" : "hidden"}`} />
@@ -115,21 +182,31 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
             <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-sm">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-sm font-medium">Verifying face...</p>
+                <p className="text-sm font-medium">Detecting & matching face...</p>
               </div>
             </div>
           )}
-          {streaming && (
-            <div className="absolute top-3 left-3 flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
-              <span className="text-xs font-medium bg-background/80 px-2 py-0.5 rounded-full">LIVE</span>
-            </div>
+          {streaming && !capturing && (
+            <>
+              <div className="absolute top-3 left-3 flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse" />
+                <span className="text-xs font-medium bg-background/80 px-2 py-0.5 rounded-full">LIVE</span>
+              </div>
+              {/* Scanning animation */}
+              <div className="absolute inset-0 pointer-events-none">
+                <motion.div
+                  className="absolute left-0 right-0 h-0.5 bg-primary/50"
+                  animate={{ top: ["5%", "95%", "5%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </div>
+            </>
           )}
         </div>
 
         <div className="flex gap-3 mb-4">
           {!streaming ? (
-            <Button onClick={startCamera} className="gradient-bg text-primary-foreground gap-2 flex-1">
+            <Button onClick={startCamera} disabled={!modelsReady} className="gradient-bg text-primary-foreground gap-2 flex-1">
               <Camera className="w-4 h-4" /> Start Camera
             </Button>
           ) : (
@@ -158,7 +235,7 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
                 <div className="flex-1">
                   <p className="font-display font-bold text-lg">{matchResult.faculty.name}</p>
                   <p className="text-sm text-muted-foreground">{matchResult.faculty.department}</p>
-                  <p className="text-xs text-success mt-1">Confidence: {matchResult.confidence}%</p>
+                  <p className="text-xs text-success mt-1">Face Match: {matchResult.confidence}%</p>
                 </div>
                 {attendanceMarked && (
                   <div className="flex items-center gap-1.5 text-success text-sm font-medium">
@@ -169,12 +246,21 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
               </div>
             </motion.div>
           )}
-          {noMatch && (
+          {noFace && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="border border-warning/30 bg-warning/5 rounded-xl p-5 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <div>
+                <p className="font-medium text-sm">No face detected</p>
+                <p className="text-xs text-muted-foreground">Position your face clearly in the camera and try again.</p>
+              </div>
+            </motion.div>
+          )}
+          {noMatch && !noFace && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="border border-destructive/30 bg-destructive/5 rounded-xl p-5 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-destructive" />
               <div>
-                <p className="font-medium text-sm">No match found</p>
-                <p className="text-xs text-muted-foreground">Ensure your profile photo is uploaded in Settings.</p>
+                <p className="font-medium text-sm">Face does not match profile</p>
+                <p className="text-xs text-muted-foreground">Ensure your registered profile photo is clear. Contact admin if needed.</p>
               </div>
             </motion.div>
           )}
