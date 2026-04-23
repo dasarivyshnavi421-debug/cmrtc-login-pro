@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchFaculty, addFaculty, deleteFaculty, updateFacultyPhoto, type Faculty } from "@/lib/attendance-store";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchFaculty, addFaculty, deleteFaculty, updateFacultyPhoto, updateFaculty, type Faculty } from "@/lib/attendance-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,9 +52,7 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
     if (!loginPassword.trim()) return toast({ title: "Login password is required for faculty", variant: "destructive" });
     setLoading(true);
     try {
-      const newFaculty = await addFaculty(name.trim(), dept.trim(), email.trim(), profilePhoto || undefined);
-      // Set login password
-      await supabase.from("faculty").update({ login_password: loginPassword.trim() }).eq("id", newFaculty.id);
+      await addFaculty(name.trim(), dept.trim(), email.trim(), loginPassword.trim(), profilePhoto || undefined);
       setName(""); setDept(""); setEmail(""); setLoginPassword(""); setProfilePhoto(null);
       await refresh();
       toast({ title: "✅ Faculty added with login credentials!" });
@@ -106,11 +103,7 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
   const saveEdit = async () => {
     if (!editingId || !editName.trim() || !editDept.trim()) return;
     try {
-      const { error } = await supabase
-        .from("faculty")
-        .update({ name: editName.trim(), department: editDept.trim(), email: editEmail.trim() })
-        .eq("id", editingId);
-      if (error) throw error;
+      await updateFaculty(editingId, editName.trim(), editDept.trim(), editEmail.trim());
       setEditingId(null);
       await refresh();
       toast({ title: "✅ Faculty updated!" });
@@ -129,7 +122,6 @@ const ManageFacultyTab = ({ onUpdate }: Props) => {
           <Plus className="w-4 h-4 text-primary" /> Add New Faculty
         </h3>
         <div className="space-y-3">
-          {/* Profile photo preview */}
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar className="h-16 w-16 border-2 border-border">

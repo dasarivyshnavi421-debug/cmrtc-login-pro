@@ -18,12 +18,16 @@ export interface AttendanceRecord {
   outTime?: string;
 }
 
+function getToken(): string | null {
+  return localStorage.getItem("att_token");
+}
+
 // ---- Faculty CRUD ----
 
 export async function fetchFaculty(): Promise<Faculty[]> {
   const { data, error } = await supabase
     .from("faculty")
-    .select("*")
+    .select("id, name, department, email, photo_url, face_descriptor, created_at, profile_updated_at")
     .order("id");
   if (error) throw error;
   return (data || []).map((f) => ({
@@ -42,28 +46,41 @@ export async function getDepartments(): Promise<string[]> {
   return [...new Set(faculty.map((f) => f.department))].sort();
 }
 
-export async function addFaculty(name: string, department: string, email: string, photoUrl?: string): Promise<Faculty> {
-  const { data, error } = await supabase
-    .from("faculty")
-    .insert({ name, department, email, photo_url: photoUrl })
-    .select()
-    .single();
+export async function addFaculty(name: string, department: string, email: string, password: string, photoUrl?: string): Promise<Faculty> {
+  const token = getToken();
+  const { data, error } = await supabase.functions.invoke("faculty-api", {
+    body: { action: "add", name, department, email, password, photo_url: photoUrl },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (error) throw error;
-  return { id: data.id, name: data.name, department: data.department, email: data.email, photoUrl: data.photo_url ?? undefined };
+  const f = data.faculty;
+  return { id: f.id, name: f.name, department: f.department, email: f.email, photoUrl: f.photo_url ?? undefined };
 }
 
 export async function deleteFaculty(id: number) {
-  const { error } = await supabase.from("faculty").delete().eq("id", id);
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("faculty-api", {
+    body: { action: "delete", id },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (error) throw error;
 }
 
 export async function updateFacultyPhoto(id: number, photoUrl: string, faceDescriptor?: number[]) {
-  const update: { photo_url: string; profile_updated_at: string; face_descriptor?: number[] } = {
-    photo_url: photoUrl,
-    profile_updated_at: new Date().toISOString(),
-  };
-  if (faceDescriptor) update.face_descriptor = faceDescriptor;
-  const { error } = await supabase.from("faculty").update(update).eq("id", id);
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("faculty-api", {
+    body: { action: "update_photo", id, photo_url: photoUrl, face_descriptor: faceDescriptor },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (error) throw error;
+}
+
+export async function updateFaculty(id: number, name: string, department: string, email: string) {
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("faculty-api", {
+    body: { action: "update", id, name, department, email },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (error) throw error;
 }
 
@@ -96,47 +113,37 @@ export async function markAttendance(
   inTime?: string,
   outTime?: string
 ) {
-  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-
-  // Check for existing record
-  const { data: existing } = await supabase
-    .from("attendance_records")
-    .select("*")
-    .eq("faculty_id", facultyId)
-    .eq("date", date)
-    .maybeSingle();
-
-  const record = {
-    faculty_id: facultyId,
-    date,
-    status,
-    method,
-    timestamp: now,
-    in_time: inTime || existing?.in_time || (status === "present" ? now : null),
-    out_time: outTime || existing?.out_time || null,
-  };
-
-  if (existing) {
-    const { error } = await supabase
-      .from("attendance_records")
-      .update(record)
-      .eq("id", existing.id);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase
-      .from("attendance_records")
-      .insert(record);
-    if (error) throw error;
-  }
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("attendance-api", {
+    body: {
+      action: "mark",
+      faculty_id: facultyId,
+      date,
+      status,
+      method,
+      in_time: inTime,
+      out_time: outTime,
+    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (error) throw error;
 }
 
 export async function markOutTime(facultyId: number, date: string) {
-  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-  const { error } = await supabase
-    .from("attendance_records")
-    .update({ out_time: now })
-    .eq("faculty_id", facultyId)
-    .eq("date", date);
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("attendance-api", {
+    body: { action: "mark_out", faculty_id: facultyId, date },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (error) throw error;
+}
+
+export async function updateFaceDescriptor(facultyId: number, faceDescriptor: number[]) {
+  const token = getToken();
+  const { error } = await supabase.functions.invoke("attendance-api", {
+    body: { action: "update_face_descriptor", faculty_id: facultyId, face_descriptor: faceDescriptor },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (error) throw error;
 }
 

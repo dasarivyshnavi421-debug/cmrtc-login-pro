@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { fetchFaculty, markAttendance, markOutTime, getAttendance, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
+import { fetchFaculty, markAttendance, markOutTime, getAttendance, updateFaceDescriptor, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { loadFaceModels, getDescriptorFromVideo, getDescriptorFromImage, compareFaces } from "@/lib/face-detection";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -141,12 +141,12 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
           toast({ title: "Cannot detect face in profile photo", description: "Please ask admin to upload a clear face photo.", variant: "destructive" });
           return;
         }
-        // Store descriptor for future use
-        const { error } = await supabase
-          .from("faculty")
-          .update({ face_descriptor: Array.from(profileDescriptor) })
-          .eq("id", myFaculty.id);
-        if (error) console.error("Failed to store face descriptor:", error);
+        // Store descriptor for future use via edge function
+        try {
+          await updateFaceDescriptor(myFaculty.id, Array.from(profileDescriptor));
+        } catch (err) {
+          console.error("Failed to store face descriptor:", err);
+        }
       }
 
       // Compare faces
