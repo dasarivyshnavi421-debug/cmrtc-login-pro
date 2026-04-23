@@ -59,13 +59,6 @@ export type Database = {
             referencedRelation: "faculty"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "attendance_records_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "faculty_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       faculty: {
@@ -131,13 +124,6 @@ export type Database = {
             referencedRelation: "faculty"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "faculty_credentials_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: true
-            referencedRelation: "faculty_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -167,47 +153,11 @@ export type Database = {
             referencedRelation: "faculty"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_roles_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "faculty_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
     Views: {
-      faculty_public: {
-        Row: {
-          created_at: string | null
-          department: string | null
-          email: string | null
-          id: number | null
-          name: string | null
-          photo_url: string | null
-          profile_updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          department?: string | null
-          email?: string | null
-          id?: number | null
-          name?: string | null
-          photo_url?: string | null
-          profile_updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          department?: string | null
-          email?: string | null
-          id?: number | null
-          name?: string | null
-          photo_url?: string | null
-          profile_updated_at?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       get_faculty_role: { Args: { p_faculty_id: number }; Returns: string }
