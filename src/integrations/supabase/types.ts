@@ -68,7 +68,6 @@ export type Database = {
           email: string
           face_descriptor: number[] | null
           id: number
-          login_password: string | null
           name: string
           photo_url: string | null
           profile_updated_at: string | null
@@ -79,7 +78,6 @@ export type Database = {
           email: string
           face_descriptor?: number[] | null
           id?: number
-          login_password?: string | null
           name: string
           photo_url?: string | null
           profile_updated_at?: string | null
@@ -90,19 +88,79 @@ export type Database = {
           email?: string
           face_descriptor?: number[] | null
           id?: number
-          login_password?: string | null
           name?: string
           photo_url?: string | null
           profile_updated_at?: string | null
         }
         Relationships: []
       }
+      faculty_credentials: {
+        Row: {
+          created_at: string
+          faculty_id: number
+          id: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          faculty_id: number
+          id?: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          faculty_id?: number
+          id?: string
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faculty_credentials_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: true
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          faculty_id: number
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          faculty_id: number
+          id?: string
+          role: string
+        }
+        Update: {
+          created_at?: string
+          faculty_id?: number
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_faculty_role: { Args: { p_faculty_id: number }; Returns: string }
     }
     Enums: {
       [_ in never]: never
