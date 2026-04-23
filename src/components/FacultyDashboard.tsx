@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { fetchFaculty, markAttendance, markOutTime, getAttendance, updateFaceDescriptor, type Faculty, type AttendanceRecord } from "@/lib/attendance-store";
 import { loadFaceModels, getDescriptorFromVideo, getDescriptorFromImage, compareFaces } from "@/lib/face-detection";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
