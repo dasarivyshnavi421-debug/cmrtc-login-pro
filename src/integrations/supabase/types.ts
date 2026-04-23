@@ -161,6 +161,14 @@ export type Database = {
     }
     Functions: {
       get_faculty_role: { Args: { p_faculty_id: number }; Returns: string }
+      set_faculty_password: {
+        Args: { p_faculty_id: number; p_password: string }
+        Returns: undefined
+      }
+      verify_password: {
+        Args: { p_faculty_id: number; p_password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
