@@ -19,7 +19,7 @@ export async function getDescriptorFromImage(imageUrl: string): Promise<Float32A
   const detection = await faceapi
     .detectSingleFace(img)
     .withFaceLandmarks()
-    .withFaceRecognition();
+    .withFaceDescriptor();
   return detection?.descriptor ?? null;
 }
 
@@ -27,7 +27,7 @@ export async function getDescriptorFromVideo(video: HTMLVideoElement): Promise<F
   const detection = await faceapi
     .detectSingleFace(video)
     .withFaceLandmarks()
-    .withFaceRecognition();
+    .withFaceDescriptor();
   return detection?.descriptor ?? null;
 }
 
@@ -38,7 +38,6 @@ export function compareFaces(
   const d1 = descriptor1 instanceof Float32Array ? descriptor1 : new Float32Array(descriptor1);
   const d2 = descriptor2 instanceof Float32Array ? descriptor2 : new Float32Array(descriptor2);
   const distance = faceapi.euclideanDistance(d1, d2);
-  // Threshold: 0.6 is standard for face-api.js
   const match = distance < 0.6;
   const confidence = Math.max(0, Math.min(100, (1 - distance) * 100));
   return { match, distance, confidence: Math.round(confidence * 10) / 10 };
@@ -57,7 +56,7 @@ export async function detectFaceFromCanvas(
   const detection = await faceapi
     .detectSingleFace(video)
     .withFaceLandmarks()
-    .withFaceRecognition();
+    .withFaceDescriptor();
 
   if (!detection) return null;
 
