@@ -27,7 +27,7 @@ function getToken(): string | null {
 export async function fetchFaculty(): Promise<Faculty[]> {
   const { data, error } = await supabase
     .from("faculty")
-    .select("id, name, department, email, photo_url, face_descriptor, created_at, profile_updated_at")
+    .select("id, name, department, email, photo_url, created_at, profile_updated_at")
     .order("id");
   if (error) throw error;
   return (data || []).map((f) => ({
@@ -36,9 +36,27 @@ export async function fetchFaculty(): Promise<Faculty[]> {
     department: f.department,
     email: f.email,
     photoUrl: f.photo_url ?? undefined,
-    faceDescriptor: f.face_descriptor ?? undefined,
     profileUpdatedAt: f.profile_updated_at ?? undefined,
   }));
+}
+
+export async function fetchFacultyWithDescriptor(facultyId: number): Promise<Faculty | null> {
+  const { data, error } = await supabase
+    .from("faculty")
+    .select("id, name, department, email, photo_url, face_descriptor, profile_updated_at")
+    .eq("id", facultyId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    department: data.department,
+    email: data.email,
+    photoUrl: data.photo_url ?? undefined,
+    faceDescriptor: data.face_descriptor ?? undefined,
+    profileUpdatedAt: data.profile_updated_at ?? undefined,
+  };
 }
 
 export async function getDepartments(): Promise<string[]> {
