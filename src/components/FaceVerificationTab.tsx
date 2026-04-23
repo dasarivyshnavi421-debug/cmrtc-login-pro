@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { fetchFaculty, markAttendance, type Faculty } from "@/lib/attendance-store";
+import { fetchFaculty, markAttendance, updateFaceDescriptor, type Faculty } from "@/lib/attendance-store";
 import { loadFaceModels, getDescriptorFromVideo, getDescriptorFromImage, compareFaces } from "@/lib/face-detection";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Camera, StopCircle, UserCheck, AlertCircle, Loader2, CheckCircle2, ShieldCheck, AlertTriangle } from "lucide-react";
@@ -112,11 +111,12 @@ const FaceVerificationTab = ({ onUpdate }: Props) => {
           toast({ title: "Cannot detect face in profile photo", description: "Please upload a clear face photo.", variant: "destructive" });
           return;
         }
-        // Store for future use
-        await supabase
-          .from("faculty")
-          .update({ face_descriptor: Array.from(profileDescriptor) })
-          .eq("id", myFaculty.id);
+        // Store for future use via edge function
+        try {
+          await updateFaceDescriptor(myFaculty.id, Array.from(profileDescriptor));
+        } catch (err) {
+          console.error("Failed to store face descriptor:", err);
+        }
       }
 
       // Compare faces
