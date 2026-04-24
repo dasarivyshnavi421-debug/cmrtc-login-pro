@@ -381,7 +381,13 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
                   >
                     <CheckCircle2 className="w-10 h-10 text-success" />
                   </motion.div>
-                  <p className="text-success font-semibold font-display text-lg">Attendance Marked Successfully</p>
+                  <p className="text-success font-semibold font-display text-lg">
+                    {todayRecord?.outTime
+                      ? "Attendance Complete"
+                      : lastAction === "out"
+                        ? "OUT-Time Marked Successfully"
+                        : "IN-Time Marked Successfully"}
+                  </p>
                   {matchConfidence > 0 && (
                     <p className="text-xs text-success/80 mt-1">Face match: {matchConfidence}% confidence</p>
                   )}
