@@ -65,6 +65,20 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Realtime: instantly refresh today's tiles when this faculty's record changes
+  useEffect(() => {
+    if (!myFaculty?.id) return;
+    const channel = supabase
+      .channel(`faculty-dash-${myFaculty.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_records", filter: `faculty_id=eq.${myFaculty.id}` },
+        () => { loadData(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [myFaculty?.id, loadData]);
+
   // Load face-api models on mount
   useEffect(() => {
     const init = async () => {
