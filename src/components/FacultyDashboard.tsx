@@ -164,14 +164,27 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
         return;
       }
 
-      // Match successful - mark attendance
+      // Match successful - decide between IN (1st) and OUT (2nd) verification
       setMatchConfidence(result.confidence);
-      await markAttendance(myFaculty.id, today, "present", "face");
+      const alreadyIn = !!todayRecord?.inTime;
+
+      if (!alreadyIn) {
+        await markAttendance(myFaculty.id, today, "present", "face");
+        setLastAction("in");
+        toast({ title: `✅ Face verified! IN-time marked (${result.confidence}%)` });
+      } else if (!todayRecord?.outTime) {
+        await markOutTime(myFaculty.id, today);
+        setLastAction("out");
+        toast({ title: `🕐 Face verified! OUT-time marked (${result.confidence}%)` });
+      } else {
+        setLastAction("out");
+        toast({ title: "Attendance already complete for today" });
+      }
+
       setVerified(true);
       stopCamera();
       onUpdate();
       await loadData();
-      toast({ title: `✅ Face verified! Attendance marked (${result.confidence}% confidence)` });
     } catch (err) {
       console.error("Verification error:", err);
       toast({ title: "Verification failed", description: "An error occurred. Please try again.", variant: "destructive" });
