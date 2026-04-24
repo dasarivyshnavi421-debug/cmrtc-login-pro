@@ -26,15 +26,27 @@ const ReportsTab = () => {
     getDepartments().then(setDepartments);
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      const dept = selectedDept === "all" ? undefined : selectedDept;
-      const [s, r] = await Promise.all([getStats(dept), getAttendance(selectedDate)]);
-      setStats(s);
-      setDailyRecords(r);
-    };
-    load();
+  const load = useCallback(async () => {
+    const dept = selectedDept === "all" ? undefined : selectedDept;
+    const [s, r] = await Promise.all([getStats(dept), getAttendance(selectedDate)]);
+    setStats(s);
+    setDailyRecords(r);
   }, [selectedDept, selectedDate]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Realtime: refresh reports when any attendance record changes
+  useEffect(() => {
+    const channel = supabase
+      .channel("reports-attendance-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_records" },
+        () => { load(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [load]);
 
   useEffect(() => {
     const loadDeptSummary = async () => {
