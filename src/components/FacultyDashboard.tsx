@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Camera, StopCircle, CheckCircle2, Loader2, LogOut, ChevronDown, Clock, CalendarDays, ScanFace, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Camera, StopCircle, CheckCircle2, Loader2, LogIn, LogOut, ChevronDown, Clock, CalendarDays, ScanFace, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import collegeBg from "@/assets/college-bg.jpg";
