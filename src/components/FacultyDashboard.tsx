@@ -272,7 +272,7 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {!verified && (
+            {!todayRecord?.outTime && (
               <>
                 {/* Camera Preview - Circular */}
                 <div className="relative mx-auto w-56 h-56 rounded-full overflow-hidden border-4 border-border bg-muted">
