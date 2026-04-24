@@ -257,11 +257,17 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
               <ScanFace className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-lg font-display">
-              {verified ? "Attendance Marked" : "Verify Your Face to Mark Attendance"}
+              {todayRecord?.outTime
+                ? "Attendance Complete"
+                : todayRecord?.inTime
+                  ? "Verify Again to Mark OUT-Time"
+                  : "Verify Your Face to Mark Attendance"}
             </CardTitle>
-            {!verified && (
+            {!todayRecord?.outTime && (
               <p className="text-xs text-muted-foreground mt-1">
-                Your face will be matched against your registered profile photo
+                {todayRecord?.inTime
+                  ? "Second face verification will record your OUT-time"
+                  : "Your face will be matched against your registered profile photo"}
               </p>
             )}
           </CardHeader>
