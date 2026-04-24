@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getStats, getDepartments, getAttendance } from "@/lib/attendance-store";
+import { supabase } from "@/integrations/supabase/client";
 import { Filter, Calendar } from "lucide-react";
 
 interface StatRow {
