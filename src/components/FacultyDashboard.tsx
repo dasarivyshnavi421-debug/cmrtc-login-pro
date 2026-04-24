@@ -25,6 +25,7 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
   const [streaming, setStreaming] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [lastAction, setLastAction] = useState<"in" | "out" | null>(null);
   const [matchConfidence, setMatchConfidence] = useState(0);
   const [modelsReady, setModelsReady] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -163,14 +164,27 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
         return;
       }
 
-      // Match successful - mark attendance
+      // Match successful - decide between IN (1st) and OUT (2nd) verification
       setMatchConfidence(result.confidence);
-      await markAttendance(myFaculty.id, today, "present", "face");
+      const alreadyIn = !!todayRecord?.inTime;
+
+      if (!alreadyIn) {
+        await markAttendance(myFaculty.id, today, "present", "face");
+        setLastAction("in");
+        toast({ title: `✅ Face verified! IN-time marked (${result.confidence}%)` });
+      } else if (!todayRecord?.outTime) {
+        await markOutTime(myFaculty.id, today);
+        setLastAction("out");
+        toast({ title: `🕐 Face verified! OUT-time marked (${result.confidence}%)` });
+      } else {
+        setLastAction("out");
+        toast({ title: "Attendance already complete for today" });
+      }
+
       setVerified(true);
       stopCamera();
       onUpdate();
       await loadData();
-      toast({ title: `✅ Face verified! Attendance marked (${result.confidence}% confidence)` });
     } catch (err) {
       console.error("Verification error:", err);
       toast({ title: "Verification failed", description: "An error occurred. Please try again.", variant: "destructive" });
@@ -243,16 +257,22 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
               <ScanFace className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-lg font-display">
-              {verified ? "Attendance Marked" : "Verify Your Face to Mark Attendance"}
+              {todayRecord?.outTime
+                ? "Attendance Complete"
+                : todayRecord?.inTime
+                  ? "Verify Again to Mark OUT-Time"
+                  : "Verify Your Face to Mark Attendance"}
             </CardTitle>
-            {!verified && (
+            {!todayRecord?.outTime && (
               <p className="text-xs text-muted-foreground mt-1">
-                Your face will be matched against your registered profile photo
+                {todayRecord?.inTime
+                  ? "Second face verification will record your OUT-time"
+                  : "Your face will be matched against your registered profile photo"}
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {!verified && (
+            {!todayRecord?.outTime && (
               <>
                 {/* Camera Preview - Circular */}
                 <div className="relative mx-auto w-56 h-56 rounded-full overflow-hidden border-4 border-border bg-muted">
@@ -361,7 +381,13 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
                   >
                     <CheckCircle2 className="w-10 h-10 text-success" />
                   </motion.div>
-                  <p className="text-success font-semibold font-display text-lg">Attendance Marked Successfully</p>
+                  <p className="text-success font-semibold font-display text-lg">
+                    {todayRecord?.outTime
+                      ? "Attendance Complete"
+                      : lastAction === "out"
+                        ? "OUT-Time Marked Successfully"
+                        : "IN-Time Marked Successfully"}
+                  </p>
                   {matchConfidence > 0 && (
                     <p className="text-xs text-success/80 mt-1">Face match: {matchConfidence}% confidence</p>
                   )}
