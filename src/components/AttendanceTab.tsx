@@ -37,6 +37,30 @@ const AttendanceTab = ({ onUpdate }: Props) => {
 
   useEffect(() => { loadAll(); }, [selectedDate]);
 
+  // Realtime: refresh when any attendance record changes for the selected date
+  useEffect(() => {
+    const channel = supabase
+      .channel("attendance-admin-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_records" },
+        async () => {
+          try {
+            const recs = await getAttendance(selectedDate);
+            setRecords(recs);
+            onUpdate();
+          } catch (err) {
+            console.error("Realtime refresh failed:", err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDate, onUpdate]);
+
   const filteredFaculty = selectedDept === "all" ? faculty : faculty.filter((f) => f.department === selectedDept);
 
   const setStatus = (id: number, status: AttendanceRecord["status"]) => {
