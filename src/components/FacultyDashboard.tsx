@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Camera, StopCircle, CheckCircle2, Loader2, LogOut, ChevronDown, Clock, CalendarDays, ScanFace, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Camera, StopCircle, CheckCircle2, Loader2, LogIn, LogOut, ChevronDown, Clock, CalendarDays, ScanFace, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import collegeBg from "@/assets/college-bg.jpg";
@@ -64,6 +64,20 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
   }, [user?.name, today]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Realtime: instantly refresh today's tiles when this faculty's record changes
+  useEffect(() => {
+    if (!myFaculty?.id) return;
+    const channel = supabase
+      .channel(`faculty-dash-${myFaculty.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_records", filter: `faculty_id=eq.${myFaculty.id}` },
+        () => { loadData(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [myFaculty?.id, loadData]);
 
   // Load face-api models on mount
   useEffect(() => {
@@ -419,18 +433,56 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className={`rounded-lg border p-3 text-center ${todayRecord ? statusBg(todayRecord.status) : "bg-muted border-border"}`}>
+                {/* STATUS badge */}
+                <motion.div
+                  key={`status-${todayRecord?.status || "none"}`}
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                  className={`relative rounded-lg border p-3 text-center overflow-hidden ${todayRecord ? statusBg(todayRecord.status) : "bg-muted border-border"}`}
+                >
+                  {todayRecord && (
+                    <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${todayRecord.status === "present" ? "bg-success" : todayRecord.status === "absent" ? "bg-destructive" : "bg-warning"} animate-pulse`} />
+                  )}
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
                   <p className={`font-semibold text-sm capitalize ${todayRecord ? statusColor(todayRecord.status) : "text-muted-foreground"}`}>
                     {todayRecord?.status || "—"}
                   </p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/50 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">In Time</p>
-                  <p className="font-semibold text-sm text-success">{todayRecord?.inTime || "—"}</p>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/50 p-3 text-center">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Out Time</p>
+                </motion.div>
+
+                {/* IN TIME badge */}
+                <motion.div
+                  key={`in-${todayRecord?.inTime || "none"}`}
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                  className={`relative rounded-lg border p-3 text-center overflow-hidden ${todayRecord?.inTime ? "bg-success/10 border-success/30" : "bg-muted/50 border-border"}`}
+                >
+                  {todayRecord?.inTime && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-success animate-pulse" />
+                  )}
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                    <LogIn className="w-2.5 h-2.5" /> In Time
+                  </p>
+                  <p className={`font-semibold text-sm ${todayRecord?.inTime ? "text-success" : "text-muted-foreground"}`}>
+                    {todayRecord?.inTime || "—"}
+                  </p>
+                </motion.div>
+
+                {/* OUT TIME badge */}
+                <motion.div
+                  key={`out-${todayRecord?.outTime || "none"}`}
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                  className={`relative rounded-lg border p-3 text-center overflow-hidden ${todayRecord?.outTime ? "bg-destructive/10 border-destructive/30" : "bg-muted/50 border-border"}`}
+                >
+                  {todayRecord?.outTime && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                  )}
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                    <LogOut className="w-2.5 h-2.5" /> Out Time
+                  </p>
                   {todayRecord?.outTime ? (
                     <p className="font-semibold text-sm text-destructive">{todayRecord.outTime}</p>
                   ) : todayRecord?.status === "present" ? (
@@ -440,7 +492,7 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
                   ) : (
                     <p className="font-semibold text-sm text-muted-foreground">—</p>
                   )}
-                </div>
+                </motion.div>
               </div>
             </CardContent>
           </Card>
