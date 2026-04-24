@@ -25,6 +25,7 @@ const FacultyDashboard = ({ onUpdate }: Props) => {
   const [streaming, setStreaming] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [lastAction, setLastAction] = useState<"in" | "out" | null>(null);
   const [matchConfidence, setMatchConfidence] = useState(0);
   const [modelsReady, setModelsReady] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
