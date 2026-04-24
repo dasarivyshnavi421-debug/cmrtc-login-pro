@@ -3,6 +3,7 @@ import { fetchFaculty, markAttendance, markOutTime, getAttendance, getDepartment
 import { Button } from "@/components/ui/button";
 import { Save, CheckCheck, LogIn, LogOut, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   onUpdate: () => void;
