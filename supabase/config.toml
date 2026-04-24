@@ -1,1 +1,10 @@
 project_id = "rmbydqpkmyjmevckmxls"
+
+[functions.login]
+verify_jwt = false
+
+[functions.faculty-api]
+verify_jwt = false
+
+[functions.attendance-api]
+verify_jwt = false
