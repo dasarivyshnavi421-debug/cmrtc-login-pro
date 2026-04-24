@@ -74,6 +74,21 @@ const FacultyProfile = () => {
 
   useEffect(() => { loadData(); }, [user]);
 
+  // Realtime: refresh profile attendance when records change
+  useEffect(() => {
+    if (!faculty?.id) return;
+    const channel = supabase
+      .channel(`faculty-profile-${faculty.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "attendance_records", filter: `faculty_id=eq.${faculty.id}` },
+        () => { loadData(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faculty?.id]);
+
   const isPhotoUpdateAllowed = !faculty?.profileUpdatedAt || isBefore(addYears(new Date(faculty.profileUpdatedAt), 1), new Date());
 
   const handlePhotoUpload = (file: File) => {
