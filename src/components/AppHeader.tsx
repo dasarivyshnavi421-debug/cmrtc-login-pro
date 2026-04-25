@@ -17,38 +17,66 @@ const AppHeader = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border" style={{ background: "var(--gradient-surface)" }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/favicon.png" alt="CMR Technical Campus" className="w-9 h-9 rounded-lg object-contain" />
-          <span className="font-display font-extrabold text-lg gradient-text">
-            CMRTC<span className="text-muted-foreground" style={{ WebkitTextFillColor: "hsl(var(--muted-foreground))" }}> Faculty</span>
+      {/* Top row: brand + actions */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <img src="/favicon.png" alt="CMR Technical Campus" className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-contain shrink-0" />
+          <span className="font-display font-extrabold text-base sm:text-lg gradient-text truncate">
+            CMRTC<span className="text-muted-foreground hidden xs:inline" style={{ WebkitTextFillColor: "hsl(var(--muted-foreground))" }}> Faculty</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Desktop-only profile chip */}
           <button
             onClick={() => {
               if (isFaculty) navigate("/profile");
               else if (user?.role === "admin") navigate("/admin-profile");
             }}
-            className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground bg-muted px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-border cursor-pointer hover:bg-accent transition-colors max-w-[160px] sm:max-w-none"
+            className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border hover:bg-accent transition-colors"
           >
             <User className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{user?.name}</span>
-            <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full gradient-bg text-primary-foreground font-medium shrink-0">
+            <span className="truncate max-w-[180px]">{user?.name}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded-full gradient-bg text-primary-foreground font-medium shrink-0">
               {user?.role}
             </span>
           </button>
           <div className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border hidden md:block">
             {new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </div>
-          <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground h-9 w-9">
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:text-destructive h-9 w-9">
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Mobile-only full-width profile bar */}
+      <div className="sm:hidden border-t border-border/60 px-3 py-2">
+        <button
+          onClick={() => {
+            if (isFaculty) navigate("/profile");
+            else if (user?.role === "admin") navigate("/admin-profile");
+          }}
+          className="w-full flex items-center gap-2.5 bg-muted/70 hover:bg-accent active:bg-accent transition-colors border border-border rounded-full pl-2 pr-2 py-1.5"
+        >
+          <span className="w-7 h-7 rounded-full gradient-bg flex items-center justify-center shrink-0">
+            <User className="w-3.5 h-3.5 text-primary-foreground" />
+          </span>
+          <span className="flex-1 min-w-0 text-left">
+            <span className="block text-sm font-semibold text-foreground leading-tight truncate">
+              {user?.name}
+            </span>
+            <span className="block text-[11px] text-muted-foreground leading-tight truncate">
+              {user?.email ?? "View profile"}
+            </span>
+          </span>
+          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full gradient-bg text-primary-foreground font-bold shrink-0">
+            {user?.role}
+          </span>
+        </button>
       </div>
     </header>
   );
