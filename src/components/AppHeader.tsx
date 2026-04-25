@@ -81,13 +81,18 @@ const AppHeader = () => {
         className={`sm:hidden border-t border-border/60 px-3 overflow-hidden transition-all duration-300 ease-in-out ${
           hideMobileBar ? "max-h-0 py-0 opacity-0 -translate-y-1 pointer-events-none" : "max-h-20 py-2 opacity-100 translate-y-0"
         }`}
+        aria-hidden={hideMobileBar}
+        // @ts-expect-error - `inert` is a valid HTML attribute supported by modern browsers
+        inert={hideMobileBar ? "" : undefined}
       >
         <button
           onClick={() => {
             if (isFaculty) navigate("/profile");
             else if (user?.role === "admin") navigate("/admin-profile");
           }}
-          className="w-full flex items-center gap-2.5 bg-muted/70 hover:bg-accent active:bg-accent transition-colors border border-border rounded-full pl-2 pr-2 py-1.5"
+          tabIndex={hideMobileBar ? -1 : 0}
+          aria-label={`Open ${user?.name ?? "user"} profile`}
+          className="w-full flex items-center gap-2.5 bg-muted/70 hover:bg-accent active:bg-accent transition-colors border border-border rounded-full pl-2 pr-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span className="w-7 h-7 rounded-full gradient-bg flex items-center justify-center shrink-0">
             <User className="w-3.5 h-3.5 text-primary-foreground" />
