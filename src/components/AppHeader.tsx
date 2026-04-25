@@ -3,12 +3,35 @@ import { LogOut, User, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/use-theme";
+import { useEffect, useRef, useState } from "react";
 
 const AppHeader = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const isFaculty = user?.role === "faculty";
+  const [hideMobileBar, setHideMobileBar] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY.current;
+        if (y < 24) setHideMobileBar(false);
+        else if (delta > 6) setHideMobileBar(true);
+        else if (delta < -6) setHideMobileBar(false);
+        lastY.current = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -53,8 +76,12 @@ const AppHeader = () => {
         </div>
       </div>
 
-      {/* Mobile-only full-width profile bar */}
-      <div className="sm:hidden border-t border-border/60 px-3 py-2">
+      {/* Mobile-only full-width profile bar (hides on scroll down) */}
+      <div
+        className={`sm:hidden border-t border-border/60 px-3 overflow-hidden transition-all duration-300 ease-in-out ${
+          hideMobileBar ? "max-h-0 py-0 opacity-0 -translate-y-1 pointer-events-none" : "max-h-20 py-2 opacity-100 translate-y-0"
+        }`}
+      >
         <button
           onClick={() => {
             if (isFaculty) navigate("/profile");
