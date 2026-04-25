@@ -31,11 +31,11 @@ const AppHeader = () => {
               if (isFaculty) navigate("/profile");
               else if (user?.role === "admin") navigate("/admin-profile");
             }}
-            className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border cursor-pointer hover:bg-accent transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground bg-muted px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-border cursor-pointer hover:bg-accent transition-colors max-w-[160px] sm:max-w-none"
           >
-            <User className="w-3.5 h-3.5" />
-            <span>{user?.name}</span>
-            <span className="text-xs px-1.5 py-0.5 rounded-full gradient-bg text-primary-foreground font-medium">
+            <User className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{user?.name}</span>
+            <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full gradient-bg text-primary-foreground font-medium shrink-0">
               {user?.role}
             </span>
           </button>
