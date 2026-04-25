@@ -76,8 +76,12 @@ const AppHeader = () => {
         </div>
       </div>
 
-      {/* Mobile-only full-width profile bar */}
-      <div className="sm:hidden border-t border-border/60 px-3 py-2">
+      {/* Mobile-only full-width profile bar (hides on scroll down) */}
+      <div
+        className={`sm:hidden border-t border-border/60 px-3 overflow-hidden transition-all duration-300 ease-in-out ${
+          hideMobileBar ? "max-h-0 py-0 opacity-0 -translate-y-1 pointer-events-none" : "max-h-20 py-2 opacity-100 translate-y-0"
+        }`}
+      >
         <button
           onClick={() => {
             if (isFaculty) navigate("/profile");
